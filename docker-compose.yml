@@ -1,0 +1,23 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: rail-safety-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: rail_safety
+      MYSQL_USER: rail_app
+      MYSQL_PASSWORD: rail_dev_password
+      MYSQL_ROOT_PASSWORD: rail_root_dev_password
+      TZ: Asia/Shanghai
+    ports:
+      - "3307:3306"
+    volumes:
+      - rail_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-prail_root_dev_password"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  rail_mysql_data:
