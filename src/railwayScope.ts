@@ -235,7 +235,7 @@ export function buildHazards(): HazardRecord[] {
         const stage = [4, 4, 4, 4, 4, 4, 3, 3, 1][local % 9]
         const overdue = stage < 4 && local % 4 === 0
         records.push({
-          id: `ZG-2026-${String(serial).padStart(4, '0')}`,
+          id: `ZG-${new Date().getFullYear()}-${String(serial).padStart(4, '0')}`,
           title: template.title,
           location: `${station} · ${template.area}`,
           bureau: bureau.name,
@@ -262,26 +262,37 @@ export function findBureauOfStation(station: string) {
 
 export type TrendPoint = { day: string; score: number; issue: number }
 
-const weeklyTrend: TrendPoint[] = [
-  { day: '09.19', score: 71, issue: 28 }, { day: '09.20', score: 66, issue: 24 }, { day: '09.21', score: 62, issue: 22 },
-  { day: '09.22', score: 58, issue: 19 }, { day: '09.23', score: 55, issue: 17 }, { day: '09.24', score: 49, issue: 14 }, { day: '09.25', score: 44, issue: 11 },
-]
+const weeklyValues: Array<[number, number]> = [[71, 28], [66, 24], [62, 22], [58, 19], [55, 17], [49, 14], [44, 11]]
 
-// 趋势序列：近 7 日按日、近 30 日按日、本年度按月
+// 按当前日期生成刻度：offset 为相对今天的天数（0 表示今天）
+function dayLabel(offsetDays: number) {
+  const date = new Date()
+  date.setDate(date.getDate() + offsetDays)
+  return `${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`
+}
+
+function monthLabel(offsetMonths: number) {
+  const date = new Date()
+  date.setMonth(date.getMonth() + offsetMonths)
+  return `${String(date.getMonth() + 1).padStart(2, '0')}月`
+}
+
+// 趋势序列：近 7 日与近 30 日按当前日期回推，本年度按当前月份回推
 export function trendSeries(period: string): TrendPoint[] {
   if (period === '近30日') {
     return Array.from({ length: 30 }, (_, index) => ({
-      day: `09.${String(index + 1).padStart(2, '0')}`,
+      day: dayLabel(index - 29),
       score: Math.round(74 - index * 1.05 + 3 * Math.sin(index / 1.6)),
       issue: Math.max(6, Math.round(31 - index * 0.78 + 2.4 * Math.sin(index / 1.2))),
     }))
   }
   if (period === '本年度') {
-    return Array.from({ length: currentDateInfo().month }, (_, index) => ({
-      day: `${String(index + 1).padStart(2, '0')}月`,
+    const monthCount = currentDateInfo().month
+    return Array.from({ length: monthCount }, (_, index) => ({
+      day: monthLabel(index - monthCount + 1),
       score: Math.round(78 - index * 3.6 + 4.2 * Math.sin(index / 1.1)),
       issue: Math.max(12, Math.round(64 - index * 5.4 + 5 * Math.sin(index / 0.9))),
     }))
   }
-  return weeklyTrend
+  return weeklyValues.map(([score, issue], index) => ({ day: dayLabel(index - 6), score, issue }))
 }
