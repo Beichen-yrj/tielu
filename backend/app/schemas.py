@@ -85,6 +85,30 @@ class AssessmentResponse(AssessmentPayload):
     model_config = ConfigDict(from_attributes=True)
 
 
+class FeedbackCreate(BaseModel):
+    category: str = Field(min_length=2, max_length=40)
+    title: str = Field(min_length=2, max_length=120)
+    content: str = Field(min_length=5, max_length=2000)
+
+
+class FeedbackReply(BaseModel):
+    reply: str = Field(min_length=2, max_length=2000)
+
+
+class FeedbackResponse(BaseModel):
+    id: int
+    category: str
+    title: str
+    content: str
+    status: str
+    reply: str | None = None
+    replied_by: str | None = None
+    created_at: str
+    replied_at: str | None = None
+    submitter: str
+    username: str
+
+
 class AiAssessmentContext(BaseModel):
     id: str = Field(max_length=40)
     name: str = Field(max_length=120)

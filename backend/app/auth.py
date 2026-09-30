@@ -62,6 +62,8 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> User:
         username=payload.username,
         display_name=(payload.display_name or payload.username).strip(),
         password_hash=hash_password(payload.password),
+        # 演示环境：以 admin 注册的账号具备管理员权限，用于查看并回复用户反馈
+        role="admin" if payload.username == "admin" else "operator",
     )
     db.add(user)
     db.commit()

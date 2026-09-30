@@ -11,6 +11,7 @@ from . import models  # noqa: F401
 from .auth import router as auth_router
 from .ai import router as ai_router
 from .assessments import router as assessments_router
+from .feedback import router as feedback_router
 from .config import get_settings
 from .database import Base, engine, get_db
 from .schemas import HealthResponse
@@ -36,6 +37,7 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type"],
 )
 app.include_router(auth_router)
+app.include_router(feedback_router)
 app.include_router(assessments_router)
 app.include_router(ai_router)
 

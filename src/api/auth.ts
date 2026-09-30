@@ -78,3 +78,10 @@ export async function logout(): Promise<void> {
 export function clearSession() {
   window.sessionStorage.removeItem(tokenKey)
 }
+
+export async function changePassword(currentPassword: string, newPassword: string): Promise<{ message: string }> {
+  return request<{ message: string }>('/auth/change-password', {
+    method: 'POST',
+    body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+  })
+}
