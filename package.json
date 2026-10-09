@@ -10,10 +10,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "fflate": "^0.8.3",
     "lucide-react": "^1.48.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-is": "^19.3.0",
+    "read-excel-file": "^9.3.10",
     "recharts": "^3.10.1"
   },
   "devDependencies": {

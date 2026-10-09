@@ -9,7 +9,7 @@ const kindMeta = [
   { title: '评估指标库', desc: '静态 31 项 + 动态 61 项，覆盖站台设施与进场、装卸、搬运作业', icon: ShieldCheck, key: '评估指标库' },
   { title: '法规依据库', desc: '每条检查项对应的法规、标准与规范条款', icon: Scale, key: '法规依据库' },
   { title: '风险规则配置', desc: 'R = L × C 分级阈值与“就高从险”等判定规则', icon: Settings2, key: '风险规则配置' },
-  { title: '整改阶段模板', desc: '未整改 → 整改中 → 待复核 → 复核中 → 已闭环', icon: BookOpen, key: '整改阶段模板' },
+  { title: '整改阶段模板', desc: '待整改 → 整改中 → 待复核 → 复核中 → 待项目经理确认 → 已闭环', icon: BookOpen, key: '整改阶段模板' },
 ]
 
 const initialRecords: MasterRecord[] = [
@@ -27,8 +27,8 @@ const initialRecords: MasterRecord[] = [
   { code: 'GZ-401', name: '风险矩阵分级阈值', category: '风险规则配置', scope: '通用', version: '待确认', status: '待业务确认', description: 'R = 可能性 L × 严重度 C', requirement: 'R ≥ 16 重大、9–15 较大、4–8 一般、≤ 3 低（计划书口径与现有矩阵对 R = 15 的分级存在差异，待确认）' },
   { code: 'GZ-402', name: '静态不通过不开展动态评估', category: '风险规则配置', scope: '通用', version: 'V1.0.2', status: '已生效', description: '避免无效评估', requirement: '静态自查存在未落实项时，直接取静态最高档并跳过动态评分' },
   { code: 'GZ-403', name: '综合评分权重', category: '风险规则配置', scope: '通用', version: '待确认', status: '待业务确认', description: '综合得分 = 0.4 × 静态 + 0.6 × 动态', requirement: '权重与“就高从险”原则需业务负责人最终确认' },
-  { code: 'MB-501', name: '整改进度五阶段模板', category: '整改阶段模板', scope: '通用', version: 'V1.0.1', status: '已生效', description: '未整改 → 整改中 → 待复核 → 复核中 → 已闭环', requirement: '每个阶段需留存责任人与时间记录，闭环需双人复核' },
-  { code: 'MB-502', name: '高风险问题整改要求', category: '整改阶段模板', scope: '通用', version: 'V1.0.1', status: '已生效', description: '重大、较大风险问题处置要求', requirement: '需上传整改后证据，安全工程师技术复核 + 项目经理管理确认' },
+  { code: 'MB-501', name: '整改进度六阶段模板', category: '整改阶段模板', scope: '通用', version: 'V1.0.1', status: '已生效', description: '待整改 → 整改中 → 待复核 → 复核中 → 待项目经理确认 → 已闭环', requirement: '每次保存、提交、撤回及退回均留存操作人与时间；原评估安全员复核后交回项目经理确认' },
+  { code: 'MB-502', name: '高风险问题整改要求', category: '整改阶段模板', scope: '通用', version: 'V1.0.1', status: '已生效', description: '重大、较大风险问题处置要求', requirement: '原评估安全员填写复核检测数据、核对原控制标准并上传现场照片，合格后交回原接办项目经理确认闭环' },
 ]
 
 export function MasterPanel({ onNotify }: { onNotify: (message: string) => void }) {

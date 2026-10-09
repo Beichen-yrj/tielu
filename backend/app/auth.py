@@ -6,12 +6,13 @@ import jwt
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from .config import get_settings
 from .database import get_db
 from .models import AuthSession, User
-from .schemas import ChangePasswordRequest, LoginRequest, MessageResponse, RegisterRequest, TokenResponse, UserResponse
+from .schemas import ChangePasswordRequest, LoginRequest, MessageResponse, ProfileUpdateRequest, RegisterRequest, TokenResponse, UserResponse
 from .security import create_access_token, decode_access_token, hash_password, verify_password
 
 
@@ -21,6 +22,30 @@ bearer = HTTPBearer(auto_error=False)
 
 def auth_error(detail: str = "登录状态无效或已过期") -> HTTPException:
     return HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=detail, headers={"WWW-Authenticate": "Bearer"})
+
+
+def ensure_default_admin() -> None:
+    """确保演示环境存在管理员账号：不存在则创建，存在但角色不是 admin 则提升为 admin。"""
+    from .database import SessionLocal
+
+    settings = get_settings()
+    username = settings.admin_username.strip()
+    if not username:
+        return
+    with SessionLocal() as db:
+        user = db.scalar(select(User).where(User.username == username))
+        if user is None:
+            db.add(User(
+                username=username,
+                display_name="系统管理员",
+                password_hash=hash_password(settings.admin_password),
+                role="admin",
+            ))
+            db.commit()
+            return
+        if user.role != "admin":
+            user.role = "admin"
+            db.commit()
 
 
 def get_current_session(
@@ -62,11 +87,14 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> User:
         username=payload.username,
         display_name=(payload.display_name or payload.username).strip(),
         password_hash=hash_password(payload.password),
-        # 演示环境：以 admin 注册的账号具备管理员权限，用于查看并回复用户反馈
-        role="admin" if payload.username == "admin" else "operator",
+        role=payload.role,
     )
     db.add(user)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="该账号已注册") from None
     db.refresh(user)
     return user
 
@@ -76,6 +104,9 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse
     user = db.scalar(select(User).where(User.username == payload.username.strip()))
     if user is None or not user.is_active or not verify_password(payload.password, user.password_hash):
         raise auth_error("账号或密码不正确")
+    expected_role = "ordinary" if user.role == "operator" else user.role
+    if payload.role and payload.role != expected_role:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="所选角色与账号权限不一致")
     token, token_id, expires_at = create_access_token(user.id)
     db.add(AuthSession(token_id=token_id, user_id=user.id, expires_at=expires_at))
     db.commit()
@@ -88,6 +119,18 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse
 
 @router.get("/me", response_model=UserResponse)
 def me(user: User = Depends(get_current_user)) -> User:
+    return user
+
+
+@router.patch("/profile", response_model=UserResponse)
+def update_profile(
+    payload: ProfileUpdateRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> User:
+    user.avatar_data = payload.avatar_data or None
+    db.commit()
+    db.refresh(user)
     return user
 
 

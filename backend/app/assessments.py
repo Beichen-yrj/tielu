@@ -4,10 +4,10 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .auth import get_current_user
 from .database import get_db
 from .models import Assessment, User
 from .schemas import AssessmentPayload, AssessmentResponse
+from .hazard_assessments import require_assessor
 
 
 router = APIRouter(prefix="/api/assessments", tags=["assessments"])
@@ -38,7 +38,7 @@ def to_response(item: Assessment) -> AssessmentResponse:
 
 
 @router.get("", response_model=list[AssessmentResponse])
-def list_assessments(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> list[AssessmentResponse]:
+def list_assessments(user: User = Depends(require_assessor), db: Session = Depends(get_db)) -> list[AssessmentResponse]:
     items = db.scalars(
         select(Assessment).where(Assessment.user_id == user.id).order_by(Assessment.updated_at.desc())
     ).all()
@@ -49,7 +49,7 @@ def list_assessments(user: User = Depends(get_current_user), db: Session = Depen
 def save_assessment(
     assessment_id: str,
     payload: AssessmentPayload,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_assessor),
     db: Session = Depends(get_db),
 ) -> AssessmentResponse:
     item = db.get(Assessment, assessment_id)

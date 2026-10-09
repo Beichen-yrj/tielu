@@ -1,0 +1,34 @@
+.rectification-drawer{width:min(600px,100%)}
+.rectification-view-tabs{display:flex;gap:20px;padding:0 16px;border-bottom:1px solid #e5ebef;overflow-x:auto}
+.rectification-view-tabs button{min-height:44px;padding:0 2px;border:0;border-bottom:2px solid transparent;background:transparent;color:#748797;font-size:11px;white-space:nowrap}
+.rectification-view-tabs button[aria-selected=true]{border-bottom-color:#2875a4;color:#22648e;font-weight:600}
+.rectification-drawer .drawer-header h2{overflow-wrap:anywhere}
+.rectification-drawer .detail-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.rectification-drawer .detail-grid strong{font-size:11px;overflow-wrap:anywhere}
+.rectification-steps{margin:0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.rectification-steps li{min-height:48px;display:flex;align-items:center;gap:7px;padding:8px;background:#f5f7f8;border:1px solid #e5ebef;border-radius:4px;color:#81909d}
+.rectification-steps li>span{width:21px;height:21px;display:grid;place-items:center;flex:none;border:1px solid #bdcbd5;border-radius:50%;font-size:10px}
+.rectification-steps b{font-size:10px;font-weight:500;line-height:1.5;overflow-wrap:anywhere}
+.rectification-steps .current{border-color:#2875a4;background:#eff6fa;color:#22648e}
+.rectification-steps .done{border-color:#c6e4d5;background:#f0f8f3;color:#248264}
+.rectification-editor{display:grid;gap:11px}
+.rectification-editor h3{margin-bottom:0}
+.rectification-editor label:not(.rectification-check):not(.rectification-upload),.rectification-withdraw-note{display:grid;gap:6px;color:#657886;font-size:11px}
+.rectification-editor input:not([type=checkbox]):not([type=file]){height:35px;padding:0 9px;width:100%;border:1px solid #dce3e9;border-radius:4px;background:white;color:#35485d;font-size:11px}
+.rectification-editor textarea,.rectification-withdraw-note textarea{font-size:12px;min-height:86px}
+.rectification-upload{min-height:43px;padding:9px;display:flex;align-items:center;justify-content:center;gap:7px;border:1px dashed #98b4c5;border-radius:4px;color:#256d96;cursor:pointer;background:#f6fafc;font-size:11px}
+.rectification-upload span{overflow-wrap:anywhere;min-width:0}
+.rectification-check{display:flex;align-items:flex-start;gap:7px;font-size:11px;color:#39594c;line-height:1.7}
+.rectification-check input{margin:3px 0 0;flex:none;width:15px;height:15px}
+.rectification-commands{display:flex;gap:8px;flex-wrap:wrap}
+.rectification-photo{display:block;margin:8px 0 0;padding:0;border:1px solid #dce5ea;border-radius:4px;overflow:hidden;background:#f0f4f6;cursor:zoom-in;width:min(180px,100%)}
+.rectification-photo img{display:block;width:100%;height:100px;object-fit:contain}
+.rectification-timeline>div>span{min-width:0;flex:1}
+.rectification-timeline>div>span p{margin:2px 0;color:#526777;font-size:11px;line-height:1.8;white-space:pre-wrap;overflow-wrap:anywhere}
+.rectification-timeline>div>span b{font-size:11px;line-height:1.5}
+.record-edit{margin-top:6px;padding:4px 9px;font-size:10px}
+.rectification-timeline>div>span small{font-size:10px;line-height:1.6;overflow-wrap:anywhere}
+.rectification-error{padding:10px;border-left:3px solid #c34e49;background:#fff3f2;color:#b43b36;font-size:12px;line-height:1.7}
+.rectification-drawer .drawer-footer{min-height:63px;height:auto;padding:12px 16px;flex-wrap:wrap;flex:none}
+.rectification-drawer .drawer-footer .button{white-space:normal;height:auto;min-height:34px;line-height:1.5;text-align:center}
+@media(max-width:420px){.rectification-steps{grid-template-columns:repeat(2,minmax(0,1fr))}.rectification-drawer .drawer-footer .button.primary{flex:1;font-size:10px}.rectification-drawer .drawer-meta{flex-wrap:wrap;gap:7px}}

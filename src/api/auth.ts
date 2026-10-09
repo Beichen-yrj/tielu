@@ -2,9 +2,12 @@ export type AuthUser = {
   id: number
   username: string
   display_name: string
+  avatar_data?: string | null
   role: string
   created_at: string
 }
+
+export type PublicRole = 'safety_manager' | 'project_manager' | 'ordinary'
 
 type TokenResponse = {
   access_token: string
@@ -47,10 +50,10 @@ export function hasSession() {
   return Boolean(window.sessionStorage.getItem(tokenKey))
 }
 
-export async function register(username: string, password: string): Promise<AuthUser> {
+export async function register(username: string, password: string, role: PublicRole): Promise<AuthUser> {
   return request<AuthUser>('/auth/register', {
     method: 'POST',
-    body: JSON.stringify({ username, password, display_name: username }),
+    body: JSON.stringify({ username, password, display_name: username, role }),
   })
 }
 
@@ -65,6 +68,13 @@ export async function login(username: string, password: string): Promise<AuthUse
 
 export function getCurrentUser(): Promise<AuthUser> {
   return request<AuthUser>('/auth/me')
+}
+
+export function updateProfileAvatar(avatarData: string): Promise<AuthUser> {
+  return request<AuthUser>('/auth/profile', {
+    method: 'PATCH',
+    body: JSON.stringify({ avatar_data: avatarData }),
+  })
 }
 
 export async function logout(): Promise<void> {

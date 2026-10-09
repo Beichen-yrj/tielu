@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, PolarAngleAxis, PolarGrid, PolarRadiusAxis, Radar, RadarChart, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis, ZAxis } from 'recharts'
-import { CalendarDays, Download, FileClock, Gauge, Shield, ShieldAlert } from 'lucide-react'
+import { ArrowLeft, CalendarDays, Download, FileClock, Gauge, Shield, ShieldAlert } from 'lucide-react'
 import { periodOptions, periodProfile, trendSeries } from './railwayScope'
 import { inputFields } from './inspection'
 import { buildDocHtml, downloadDoc } from './exportDoc'
@@ -20,15 +20,16 @@ export type HistoryIssue = {
 }
 
 const colors: Record<RiskLevel, string> = { 重大: '#d84343', 较大: '#e97825', 一般: '#e5aa27', 低: '#24816b' }
-const stageLabels = ['未整改', '整改中', '待复核', '复核中', '已闭环']
+const stageLabels = ['待整改', '整改中', '待复核', '复核中', '待项目经理确认', '已闭环']
 
-export function HistoryPanel({ records, issues, period, setPeriod, onOpen, onNotify }: {
+export function HistoryPanel({ records, issues, period, setPeriod, onOpen, onNotify, onBack }: {
   records: AssessmentRecordLike[]
   issues: HistoryIssue[]
   period: string
   setPeriod: (value: string) => void
   onOpen: (id: string) => void
   onNotify: (message: string) => void
+  onBack?: () => void
 }) {
   const profile = periodProfile(period)
   const factor = period === '本年度' ? 8.4 : period === '近30日' ? 3.1 : 1
@@ -69,7 +70,7 @@ export function HistoryPanel({ records, issues, period, setPeriod, onOpen, onNot
     for (const issue of issues) {
       const entry = map.get(issue.station) ?? { station: issue.station, total: 0, closed: 0 }
       entry.total += 1
-      if (issue.stage === 4) entry.closed += 1
+      if (issue.stage === 5) entry.closed += 1
       map.set(issue.station, entry)
     }
     const list = [...map.values()].filter((item) => item.total >= 2)
@@ -106,7 +107,7 @@ export function HistoryPanel({ records, issues, period, setPeriod, onOpen, onNot
         <h1>历史分析</h1>
         <p>按分析周期查看风险变化、场站差异与整改时效，下方可导出包含整改进度的历史评估报告</p>
       </div>
-      <div className="heading-actions"><button className="button secondary" onClick={() => records.length ? onNotify('请在下方历史评估记录中选择需要导出的任务') : onNotify('暂无可导出的历史评估记录')}><Download size={16} />导出说明</button></div>
+      <div className="heading-actions">{onBack && <button className="button secondary" onClick={onBack}><ArrowLeft size={16} />返回安全驾驶舱</button>}<button className="button secondary" onClick={() => records.length ? onNotify('请在下方历史评估记录中选择需要导出的任务') : onNotify('暂无可导出的历史评估记录')}><Download size={16} />导出说明</button></div>
     </div>
 
     <div className="filter-bar">
@@ -192,7 +193,7 @@ export function HistoryPanel({ records, issues, period, setPeriod, onOpen, onNot
             <td>{record.detector}</td>
             <td>{record.risk}风险</td>
             <td>{record.findings?.length ?? 0} 项</td>
-            <td>{related.length ? `${stageLabels[avgStage] ?? '未整改'}（${related.filter((issue) => issue.stage === 4).length}/${related.length} 已闭环）` : '暂无关联整改'}</td>
+            <td>{related.length ? `${stageLabels[avgStage] ?? '未整改'}（${related.filter((issue) => issue.stage === 5).length}/${related.length} 已闭环）` : '暂无关联整改'}</td>
             <td>{record.status}</td>
             <td className="record-actions">
               <button className="row-action" onClick={() => onOpen(record.id)}>查看报告</button>

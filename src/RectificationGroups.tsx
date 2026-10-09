@@ -14,10 +14,11 @@ export type RectificationIssue = {
   type: string
   overdue: boolean
   source?: '静态' | '动态'
+  record?: import('./api/hazardAssessments').HazardAssessmentRecord
 }
 
 const colors: Record<RiskLevel, string> = { 重大: '#d84343', 较大: '#e97825', 一般: '#e5aa27', 低: '#24816b' }
-const stageLabels = ['未整改', '整改中', '待复核', '复核中', '已闭环']
+const stageLabels = ['待整改', '整改中', '待复核', '复核中', '待项目经理确认', '已闭环']
 const order: Record<RiskLevel, number> = { 重大: 0, 较大: 1, 一般: 2, 低: 3 }
 
 function RiskChip({ risk }: { risk: RiskLevel }) {
@@ -25,13 +26,12 @@ function RiskChip({ risk }: { risk: RiskLevel }) {
 }
 
 function StageBar({ stage }: { stage: number }) {
-  return <span className="stage-bar">{[0, 1, 2, 3, 4].map((step) => <i key={step} className={step <= stage ? 'on' : ''} />)}<b>{stageLabels[stage] ?? '未整改'}</b></span>
+  return <span className="stage-bar">{[0, 1, 2, 3, 4, 5].map((step) => <i key={step} className={step <= stage ? 'on' : ''} />)}<b>{stageLabels[stage] ?? '待整改'}</b></span>
 }
 
-export function RectificationGroups({ issues, onSelect, moveStage, scopeText }: {
+export function RectificationGroups({ issues, onSelect, scopeText }: {
   issues: RectificationIssue[]
   onSelect: (issue: RectificationIssue) => void
-  moveStage: (id: string, stage: number) => void
   scopeText: string
 }) {
   const groups = useMemo(() => {
@@ -87,8 +87,8 @@ export function RectificationGroups({ issues, onSelect, moveStage, scopeText }: 
             <div className="rect-item-meta"><span>{issue.owner}</span><span><Clock3 size={12} />{issue.due}</span></div>
             <StageBar stage={issue.stage} />
             <div className="rect-item-actions">
-              {issue.stage < 4 && <button className="row-action" onClick={() => moveStage(issue.id, issue.stage + 1)}>{issue.stage === 3 ? '提交销号' : '推进整改'} <ArrowRight size={13} /></button>}
-              {issue.stage === 4 && <span className="rect-done"><Check size={13} />已闭环</span>}
+              {issue.stage < 5 && <button className="row-action" onClick={() => onSelect(issue)}>查看并处理 <ArrowRight size={13} /></button>}
+              {issue.stage === 5 && <span className="rect-done"><Check size={13} />已闭环</span>}
               <button className="row-action" onClick={() => onSelect(issue)}>查看</button>
             </div>
           </article>)}
