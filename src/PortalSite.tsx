@@ -4,6 +4,7 @@ import {
   Gauge, MapPin, Menu, Newspaper, Shield, ShieldAlert,
 } from 'lucide-react'
 import logo from './assets/logo.jpg'
+import { SOFTWARE_ALT_TEXT, SOFTWARE_FULL_NAME, SOFTWARE_SHORT_NAME } from './brand'
 import './Portal.css'
 
 const heroSlides = [
@@ -17,7 +18,7 @@ const showcaseImage = '/portal/showcase-container-loading.jpg'
 type PortalNavItem = { path: string; label: string; desc: string }
 
 const portalNav: PortalNavItem[] = [
-  { path: '/', label: '首页', desc: '铁路危险货物运输“双重预防机制”一体化信息平台' },
+  { path: '/', label: '首页', desc: SOFTWARE_FULL_NAME },
   { path: '/overview', label: '平台概况', desc: '面向铁路局、场站与安全管理人员的统一安全运营入口' },
   { path: '/process', label: '业务流程', desc: '以风险为起点，以整改复核为闭环，形成可追溯的安全管理链路' },
   { path: '/features', label: '产品功能', desc: '围绕铁路危险货物运输安全运营，建设统一、清晰、可下钻的业务能力' },
@@ -255,7 +256,7 @@ export function PortalSite({ onEnter }: { onEnter: () => void }) {
         {(isHome ? heroSlides : [heroSlides[0]]).map((slide, index) => <span key={slide.src} className={!isHome || index === heroIndex ? 'active' : ''} style={{ backgroundImage: `url(${slide.src})` }} />)}
       </div>
       <nav className="portal-nav">
-        <button className="portal-brand" onClick={() => navigate('/')}><img src={logo} alt="铁路危货双重预防机制评估系统标识" /><span><strong>铁路危货双重预防机制评估系统</strong><small>石家庄铁道大学 · 大学生创新创业训练计划</small></span></button>
+        <button className="portal-brand" onClick={() => navigate('/')}><img src={logo} alt={SOFTWARE_ALT_TEXT} /><span><strong>{SOFTWARE_SHORT_NAME}</strong></span></button>
         <button className="portal-menu-toggle" aria-label="打开门户导航" onClick={() => setMenuOpen((open) => !open)}><Menu size={25} /></button>
         <div className={`portal-links ${menuOpen ? 'open' : ''}`}>
           {portalNav.map((item) => <a
@@ -269,7 +270,7 @@ export function PortalSite({ onEnter }: { onEnter: () => void }) {
         </div>
       </nav>
       {isHome
-        ? <div className="portal-hero-copy"><span>RAILWAY DANGEROUS GOODS SAFETY</span><h1>铁路危险货物运输<br />“双重预防机制”<br className="portal-title-break" />一体化信息平台</h1><p>专注铁路危险货物运输风险分级管控与隐患排查治理</p><button className="portal-hero-enter" onClick={requestEntry}>进入管理平台 <ArrowRight size={16} /></button></div>
+        ? <div className="portal-hero-copy"><span>RAILWAY DANGEROUS GOODS SAFETY</span><h1>{SOFTWARE_FULL_NAME}</h1><p>专注铁路危险货物运输风险分级管控与隐患排查治理</p><button className="portal-hero-enter" onClick={requestEntry}>进入管理平台 <ArrowRight size={16} /></button></div>
         : <div className="portal-sub-copy"><span>{activeNav.label}</span><h1>{detail ? '新闻详情' : activeNav.label}</h1><p>{detail ? detail.title : activeNav.desc}</p></div>}
       {isHome && <div className="portal-hero-controls" aria-label="首屏图片轮播控制">
         <button type="button" className="portal-hero-arrow" aria-label="上一张图片" onClick={() => setHeroIndex((heroIndex - 1 + heroSlides.length) % heroSlides.length)}><ArrowLeft size={17} /></button>
@@ -284,13 +285,13 @@ export function PortalSite({ onEnter }: { onEnter: () => void }) {
       <a href="#/">首页</a>
       {!isHome && !detail && <><ChevronDown size={14} className="portal-bread-arrow" /><strong>{activeNav.label}</strong></>}
       {detail && <><ChevronDown size={14} className="portal-bread-arrow" /><a href="#/news">新闻资讯</a><ChevronDown size={14} className="portal-bread-arrow" /><strong>新闻详情</strong></>}
-      {isHome && <><ChevronDown size={14} className="portal-bread-arrow" /><strong>铁路危险货物运输“双重预防机制”一体化信息平台</strong></>}
+      {isHome && <><ChevronDown size={14} className="portal-bread-arrow" /><strong>{SOFTWARE_FULL_NAME}</strong></>}
     </div>
 
     <main>{page}</main>
 
     <footer className="portal-footer">
-      <div><img src={logo} alt="铁路危货双重预防机制评估系统标识" /><span><strong>铁路危货双重预防机制评估系统</strong><small>铁路危险货物运输“双重预防机制”一体化信息平台</small></span></div>
+      <div><img src={logo} alt={SOFTWARE_ALT_TEXT} /><span><strong>{SOFTWARE_SHORT_NAME}</strong><small>{SOFTWARE_FULL_NAME}</small></span></div>
       <p>交互演示版 · 风险阈值、指标源表与正式部署边界待业务确认</p>
       <button onClick={requestEntry}>进入管理平台</button>
     </footer>
@@ -302,7 +303,7 @@ function HomePage({ onEnter, onNavigate }: { onEnter: () => void; onNavigate: (p
     <section className="portal-overview portal-section">
       <div className="portal-section-inner portal-overview-grid">
         <div>
-          <h2>铁路危险货物运输<br />“双重预防机制”一体化信息平台</h2>
+          <h2>{SOFTWARE_FULL_NAME}</h2>
           <p>面向铁路局、场站及安全管理人员，将风险辨识、静态评估、动态作业评分、专家研判、隐患整改和双人复核统一到一套业务链路中。平台通过风险四色分级、5 × 5 矩阵、任务进度与历史趋势，帮助管理人员及时掌握风险变化，推动风险管控与隐患治理全过程闭环。</p>
           <div className="portal-overview-actions"><button onClick={onEnter}>进入平台演示 <ArrowRight size={16} /></button><span><Shield size={17} /> 当前为前端交互演示版</span></div>
         </div>

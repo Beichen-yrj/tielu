@@ -30,7 +30,7 @@ If you are developing a production application, we recommend enabling type-aware
 ```
 
 See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
-# 铁路危险货物运输“双重预防机制”一体化信息平台
+# 铁路危险货物运输双重预防机制智能安全管控平台
 
 前端采用 React + TypeScript + Vite，后端采用 Python + FastAPI + SQLAlchemy，正式数据库为 MySQL 8。当前首页是官网式门户，登录后进入安全管理驾驶舱。
 

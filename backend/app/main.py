@@ -57,7 +57,7 @@ async def lifespan(_: FastAPI):
 
 settings = get_settings()
 app = FastAPI(
-    title="铁路危险货物运输双重预防机制平台 API",
+    title="铁路危险货物运输双重预防机制智能安全管控平台 API",
     version="0.1.0",
     lifespan=lifespan,
 )

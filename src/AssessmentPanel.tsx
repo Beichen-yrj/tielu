@@ -3,6 +3,7 @@ import { AlertTriangle, ArrowLeft, ArrowRight, Check, ClipboardCheck, Database, 
 import { bureaus } from './railwayScope'
 import { dynamicItems, emptyInput, evaluateInspection, importTemplate, inputFields, staticItems, type InspectionInput, type InspectionResult, type RiskLevel } from './inspection'
 import { buildDocHtml, downloadDoc, downloadText } from './exportDoc'
+import { SOFTWARE_FULL_NAME } from './brand'
 
 export type AssessmentRecordLike = {
   id: string
@@ -210,7 +211,7 @@ function AssessmentReport({ record, filterMode, setFilterMode, onBack, onReevalu
   const dynamicRows = filterMode === '仅不符合' ? result.dynamicResults.filter((item) => !item.passed) : result.dynamicResults
 
   const exportWord = () => {
-    const html = buildDocHtml('铁路危险货物运输“双重预防机制”评估报告', `${record.name} · ${record.station} · 生成时间 ${result.generatedAt}`, [
+    const html = buildDocHtml(`${SOFTWARE_FULL_NAME}评估报告`, `${record.name} · ${record.station} · 生成时间 ${result.generatedAt}`, [
       { heading: '一、任务信息', facts: [['任务编号', record.id], ['任务名称', record.name], ['场站', record.station], ['作业区域', record.area], ['危险货物', record.cargo], ['UN 编号', record.unNumber], ['数据来源', record.detector], ['评估状态', record.status], ['填表人', userName]] },
       { heading: '二、检测数据', table: { columns: ['检测项', '数值', '单位'], rows: inputRows.map((row) => [row.label, String(row.value), row.unit || '—']) } },
       { heading: '三、总体结论', paragraphs: [result.summary, ...result.overallIssues] },
