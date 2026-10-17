@@ -12,6 +12,13 @@ import type { AssessmentType, HazardAssessmentRecord, RiskLevel } from './api/ha
 const riskColors: Record<RiskLevel, string> = { 低: '#24816b', 一般: '#d99a1c', 较大: '#e56f22', 重大: '#d84343' }
 const bureauShort = (name: string) => bureaus.find((item) => item.name === name)?.short || name
 
+const createAssessmentId = () => {
+  const cryptoApi = globalThis.crypto
+  if (cryptoApi && typeof cryptoApi.randomUUID === 'function') return cryptoApi.randomUUID()
+  const randomPart = () => Math.random().toString(36).slice(2)
+  return `${Date.now().toString(36)}-${randomPart()}-${randomPart()}`
+}
+
 type Props = {
   records: HazardAssessmentRecord[]
   userName: string
@@ -263,7 +270,7 @@ function CreateAssessment({ userName, existingRecords, onClose, onSubmit }: { us
       const missingPhoto = importedRows.findIndex((row) => !row.photoData)
       if (missingPhoto >= 0) { setMessage(`第 ${missingPhoto + 1} 条评估缺少检测照片，请在该条记录中上传`); return }
       const createdAt = new Date().toLocaleString('zh-CN', { hour12: false })
-      const batchId = crypto.randomUUID().replace(/-/g, '')
+      const batchId = createAssessmentId().replace(/-/g, '')
       await onSubmit(importedRows.map((row, index) => buildImportedRecord(row, userName, `HA-${batchId}-${index + 1}`, createdAt)))
       return
     }
@@ -272,7 +279,7 @@ function CreateAssessment({ userName, existingRecords, onClose, onSubmit }: { us
     const createdAt = new Date().toLocaleString('zh-CN', { hour12: false })
     const finalFinding = finding.trim() || (hasHazard ? `${selected.stage}${selected.dimension}类危险源“${selected.name}”存在异常：${dataName}${measuredValue}${unit ? ` ${unit}` : ''}。` : `未发现“${selected.name}”相关隐患。`)
     await onSubmit([{
-      id: `HA-${crypto.randomUUID().replace(/-/g, '')}`,
+      id: `HA-${createAssessmentId().replace(/-/g, '')}`,
       task_name: taskName.trim(), bureau, station, area: area.trim(), cargo: cargo.trim(), un_number: unNumber.trim(), inspector: userName,
       hazard_code: selected.code, stage: selected.stage, dimension: selected.dimension, hazard_name: selected.name, basis: selected.basis,
       assessment_type: assessmentType, data_name: dataName.trim(), measured_value: measuredValue.trim(), unit: unit.trim(), standard_value: standardValue.trim(),
