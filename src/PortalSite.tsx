@@ -3,7 +3,7 @@ import {
   ArrowLeft, ArrowRight, CalendarDays, ChartNoAxesCombined, Check, ChevronDown, ClipboardCheck,
   Gauge, MapPin, Menu, Newspaper, Shield, ShieldAlert,
 } from 'lucide-react'
-import logo from './assets/logo.jpg'
+import logo from './assets/logo.webp'
 import { SOFTWARE_ALT_TEXT, SOFTWARE_FULL_NAME, SOFTWARE_SHORT_NAME } from './brand'
 import './Portal.css'
 
@@ -185,7 +185,7 @@ function PortalHeading({ en, title, desc }: { en: string; title: string; desc: s
 function NewsCard({ item, onOpen }: { item: NewsItem; onOpen: (id: string) => void }) {
   return <article className="portal-news-card">
     <button className="portal-news-cover" onClick={() => onOpen(item.id)} aria-label={`查看 ${item.title}`}>
-      <img src={item.cover} alt={item.title} />
+      <img src={item.cover} alt={item.title} loading="lazy" decoding="async" />
     </button>
     <div className="portal-news-body">
       <div className="portal-news-meta"><span className="portal-news-tag"><Newspaper size={12} />{item.category}</span><span><CalendarDays size={12} />{item.date}</span></div>
@@ -253,7 +253,7 @@ export function PortalSite({ onEnter }: { onEnter: () => void }) {
       onMouseLeave={() => setHeroPaused(false)}
     >
       <div className="portal-hero-media" aria-hidden="true">
-        {(isHome ? heroSlides : [heroSlides[0]]).map((slide, index) => <span key={slide.src} className={!isHome || index === heroIndex ? 'active' : ''} style={{ backgroundImage: `url(${slide.src})` }} />)}
+        {(isHome ? [hero] : [heroSlides[0]]).map((slide) => <span key={slide.src} className="active" style={{ backgroundImage: `url(${slide.src})` }} />)}
       </div>
       <nav className="portal-nav">
         <button className="portal-brand" onClick={() => navigate('/')}><img src={logo} alt={SOFTWARE_ALT_TEXT} /><span><strong>{SOFTWARE_SHORT_NAME}</strong></span></button>
@@ -307,7 +307,7 @@ function HomePage({ onEnter, onNavigate }: { onEnter: () => void; onNavigate: (p
           <p>面向铁路局、场站及安全管理人员，将风险辨识、静态评估、动态作业评分、专家研判、隐患整改和双人复核统一到一套业务链路中。平台通过风险四色分级、5 × 5 矩阵、任务进度与历史趋势，帮助管理人员及时掌握风险变化，推动风险管控与隐患治理全过程闭环。</p>
           <div className="portal-overview-actions"><button onClick={onEnter}>进入平台演示 <ArrowRight size={16} /></button><span><Shield size={17} /> 当前为前端交互演示版</span></div>
         </div>
-        <div className="portal-product-visual"><img src={overviewImage} alt="铁路集装箱货运场站" /><small>铁路集装箱货运场站</small></div>
+        <div className="portal-product-visual"><img src={overviewImage} alt="铁路集装箱货运场站" loading="lazy" decoding="async" /><small>铁路集装箱货运场站</small></div>
       </div>
     </section>
 
@@ -343,7 +343,7 @@ function HomePage({ onEnter, onNavigate }: { onEnter: () => void; onNavigate: (p
           <p>管理端聚焦风险态势、任务统筹和审核决策；移动端可用于现场检查、证据采集与整改反馈。当前演示已完成管理端核心页面，移动作业端作为后续扩展范围。</p>
           <button onClick={onEnter}>打开平台演示 <ArrowRight size={16} /></button>
         </div>
-        <div className="portal-showcase-image"><img src={showcaseImage} alt="铁路货运列车作业场景" /><span>铁路货运作业场景</span></div>
+        <div className="portal-showcase-image"><img src={showcaseImage} alt="铁路货运列车作业场景" loading="lazy" decoding="async" /><span>铁路货运作业场景</span></div>
       </div>
     </section>
   </>
@@ -442,7 +442,7 @@ function ShowcasePage({ onEnter }: { onEnter: () => void }) {
           <p>管理端聚焦风险态势、任务统筹和审核决策；移动端可用于现场检查、证据采集与整改反馈。当前演示已完成管理端核心页面，移动作业端作为后续扩展范围。</p>
           <button onClick={onEnter}>打开平台演示 <ArrowRight size={16} /></button>
         </div>
-        <div className="portal-showcase-image"><img src={showcaseImage} alt="铁路货运列车作业场景" /><span>铁路货运作业场景</span></div>
+        <div className="portal-showcase-image"><img src={showcaseImage} alt="铁路货运列车作业场景" loading="lazy" decoding="async" /><span>铁路货运作业场景</span></div>
       </div>
     </section>
     <section className="portal-text portal-section">
@@ -480,7 +480,7 @@ function NewsDetail({ item, onBack }: { item: NewsItem; onBack: () => void }) {
       </div>
       <h1>{item.title}</h1>
       <p className="portal-article-summary">{item.summary}</p>
-      <div className="portal-article-cover"><img src={item.cover} alt={item.title} /></div>
+      <div className="portal-article-cover"><img src={item.cover} alt={item.title} decoding="async" /></div>
       <p className="portal-article-caption">{item.imageNote}</p>
       <div className="portal-article-body">{item.body.map((paragraph, index) => <p key={index}>{paragraph}</p>)}</div>
       <p className="portal-article-note">来源：{item.source}。本栏目内容用于平台门户演示，引用信息以原始发布渠道为准。</p>

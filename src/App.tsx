@@ -9,7 +9,7 @@ import {
   Area, CartesianGrid, Cell, ComposedChart, Line, Pie,
   PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts'
-import logo from './assets/logo.jpg'
+import logo from './assets/logo.webp'
 import { SOFTWARE_ALT_TEXT, SOFTWARE_FULL_NAME, SOFTWARE_SHORT_NAME } from './brand'
 import { ApiError, clearSession, getCurrentUser, hasSession, login, logout, register, type PublicRole } from './api/auth'
 import { deleteHazardAssessment, listHazardAssessments, persistHazardAssessment, updateRectificationStatus, type HazardAssessmentRecord, type RectificationUpdate } from './api/hazardAssessments'
@@ -265,15 +265,15 @@ function PlatformApp({ onBack, onLogout, onAvatarChange, userName, userRole, use
 }
 
 
-function App() {
+function App({ startAtEntry = false }: { startAtEntry?: boolean }) {
   const [entered, setEntered] = useState(false)
-  const [authOpen, setAuthOpen] = useState(false)
+  const [authOpen, setAuthOpen] = useState(startAtEntry && !hasSession())
   const [userName, setUserName] = useState('周明远')
   const [userId, setUserId] = useState(0)
   const [userRole, setUserRole] = useState('operator')
   const [avatarData, setAvatarData] = useState('')
   const [offline, setOffline] = useState(false)
-  const requestEntry = async () => {
+  const requestEntry = useCallback(async () => {
     if (hasSession()) {
       try {
         const user = await getCurrentUser()
@@ -288,7 +288,10 @@ function App() {
       }
     }
     setAuthOpen(true)
-  }
+  }, [])
+  useEffect(() => {
+    if (startAtEntry && hasSession()) queueMicrotask(() => void requestEntry())
+  }, [requestEntry, startAtEntry])
   const backToPortal = () => { window.location.hash = '#/'; setEntered(false) }
   const handleLogout = async () => {
     await logout()
