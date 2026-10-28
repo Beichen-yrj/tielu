@@ -1,0 +1,266 @@
+[
+  {
+    "source": "public/portal/hero-locomotive.jpg",
+    "source_sha256": "2cd6bd8a958bf0cf18ff4db9538dd3513a9e2d64fb1cae45b93d7425c3f5deba",
+    "output": "public/portal/hero-locomotive-960.webp",
+    "output_sha256": "eb12bf7631b6663f37659e3525c0ccfb1ff20cb9aa2c64c25e339953fd83f510",
+    "dimensions": [
+      960,
+      540
+    ],
+    "bytes": 113114,
+    "method": "Pillow WebP quality=82, LANCZOS, no crop, RGB"
+  },
+  {
+    "source": "public/portal/hero-locomotive.jpg",
+    "source_sha256": "2cd6bd8a958bf0cf18ff4db9538dd3513a9e2d64fb1cae45b93d7425c3f5deba",
+    "output": "public/portal/hero-locomotive-1600.webp",
+    "output_sha256": "5b12f9dac00f903b326a581c26ef11fd2d9daaa456c3d47b5af48394231bfde8",
+    "dimensions": [
+      1440,
+      810
+    ],
+    "bytes": 206404,
+    "method": "Pillow WebP quality=82, LANCZOS, no crop, RGB"
+  },
+  {
+    "source": "public/portal/hero-heavy-transport.jpg",
+    "source_sha256": "dcac9a02e9f9423986a8d4e5f4ffe0b707a65b99e094f36ef48e45918aa572d1",
+    "output": "public/portal/hero-heavy-transport-960.webp",
+    "output_sha256": "b865a57511edabd9548be5480051ba5f14d26c919e82c2365d9ea7fac4b14d2c",
+    "dimensions": [
+      960,
+      540
+    ],
+    "bytes": 133610,
+    "method": "Pillow WebP quality=82, LANCZOS, no crop, RGB"
+  },
+  {
+    "source": "public/portal/hero-heavy-transport.jpg",
+    "source_sha256": "dcac9a02e9f9423986a8d4e5f4ffe0b707a65b99e094f36ef48e45918aa572d1",
+    "output": "public/portal/hero-heavy-transport-1600.webp",
+    "output_sha256": "24f30ad5812cae599575b08a3173bab6c583275c50665a9b1ccd0cb454a10631",
+    "dimensions": [
+      1440,
+      810
+    ],
+    "bytes": 266728,
+    "method": "Pillow WebP quality=82, LANCZOS, no crop, RGB"
+  },
+  {
+    "source": "public/portal/hero-container-yard.jpg",
+    "source_sha256": "dd32ad506a6114d28167610551d1e8c8741443c13f45f71ed955e934f7109df7",
+    "output": "public/portal/hero-container-yard-960.webp",
+    "output_sha256": "e50e846b750083948512ffc848ef3f4c1b697d426dc2c4c0c3667fbfbfc1a8e3",
+    "dimensions": [
+      960,
+      575
+    ],
+    "bytes": 67006,
+    "method": "Pillow WebP quality=82, LANCZOS, no crop, RGB"
+  },
+  {
+    "source": "public/portal/hero-container-yard.jpg",
+    "source_sha256": "dd32ad506a6114d28167610551d1e8c8741443c13f45f71ed955e934f7109df7",
+    "output": "public/portal/hero-container-yard-1600.webp",
+    "output_sha256": "c26b8d65c6c71aee3fc9ad6d35a9480d82dd85c79912870a4744eb6534454c35",
+    "dimensions": [
+      1600,
+      958
+    ],
+    "bytes": 140398,
+    "method": "Pillow WebP quality=82, LANCZOS, no crop, RGB"
+  },
+  {
+    "source": "public/portal/overview-terminal.jpg",
+    "source_sha256": "fc7163aa377b5a3c67c9a4d1d0907e98bc6a203965aeaa7d8c775bbf52ca5465",
+    "output": "public/portal/overview-terminal-640.webp",
+    "output_sha256": "288f7197b568974583a13a193ee321180106c5cb8f73237980434516298b1a0b",
+    "dimensions": [
+      640,
+      360
+    ],
+    "bytes": 74316,
+    "method": "Pillow WebP quality=82, LANCZOS, no crop, RGB"
+  },
+  {
+    "source": "public/portal/overview-terminal.jpg",
+    "source_sha256": "fc7163aa377b5a3c67c9a4d1d0907e98bc6a203965aeaa7d8c775bbf52ca5465",
+    "output": "public/portal/overview-terminal-1280.webp",
+    "output_sha256": "b1468f68a47fd860b1a6b3f0dc38d79b216d3e4df5f545b74b7331ed1afd31ca",
+    "dimensions": [
+      1280,
+      720
+    ],
+    "bytes": 254792,
+    "method": "Pillow WebP quality=82, LANCZOS, no crop, RGB"
+  },
+  {
+    "source": "public/portal/showcase-container-loading.jpg",
+    "source_sha256": "2e5ff81d514dd7dc0a5446f935f661080bf4e1de2bb9223176aeaa22acb9bd0d",
+    "output": "public/portal/showcase-container-loading-640.webp",
+    "output_sha256": "64ded8d1cf43f0b8efac834f7070eab204ca31f810ba37ac7e5f850c0b1b6567",
+    "dimensions": [
+      640,
+      360
+    ],
+    "bytes": 30320,
+    "method": "Pillow WebP quality=82, LANCZOS, no crop, RGB"
+  },
+  {
+    "source": "public/portal/showcase-container-loading.jpg",
+    "source_sha256": "2e5ff81d514dd7dc0a5446f935f661080bf4e1de2bb9223176aeaa22acb9bd0d",
+    "output": "public/portal/showcase-container-loading-1280.webp",
+    "output_sha256": "f02ab8c251bb2e5b768f47dd42e0ce21145b5904ae369d397ec899f666820e03",
+    "dimensions": [
+      1280,
+      720
+    ],
+    "bytes": 92570,
+    "method": "Pillow WebP quality=82, LANCZOS, no crop, RGB"
+  },
+  {
+    "source": "public/portal/news-tank-wagons.jpg",
+    "source_sha256": "27ba86c4c7b24d0c4696f479a17dc751a72f7da2d6cff671ae597c03ae5d30e2",
+    "output": "public/portal/news-tank-wagons-640.webp",
+    "output_sha256": "36e157be95cd9935d776c227fc9e2dd4d9b18e9b41438f81c9cd22786c14bfdb",
+    "dimensions": [
+      640,
+      416
+    ],
+    "bytes": 21896,
+    "method": "Pillow WebP quality=82, LANCZOS, no crop, RGB"
+  },
+  {
+    "source": "public/portal/news-tank-wagons.jpg",
+    "source_sha256": "27ba86c4c7b24d0c4696f479a17dc751a72f7da2d6cff671ae597c03ae5d30e2",
+    "output": "public/portal/news-tank-wagons-1280.webp",
+    "output_sha256": "a87417ce4620990885d2abea39b21794f8807d0d38c55dd4df25fc458b0de600",
+    "dimensions": [
+      1280,
+      831
+    ],
+    "bytes": 47936,
+    "method": "Pillow WebP quality=82, LANCZOS, no crop, RGB"
+  },
+  {
+    "source": "public/portal/news-oil-tankers.jpg",
+    "source_sha256": "1d7dd9b6a230641e71faac63479403783946461fd0c646caa67aa0fc200d250e",
+    "output": "public/portal/news-oil-tankers-640.webp",
+    "output_sha256": "069eafbf11cbbe3a7c6078e939013297e2d7f7e6d36090e412064e9b86c7ab6e",
+    "dimensions": [
+      640,
+      419
+    ],
+    "bytes": 57596,
+    "method": "Pillow WebP quality=82, LANCZOS, no crop, RGB"
+  },
+  {
+    "source": "public/portal/news-oil-tankers.jpg",
+    "source_sha256": "1d7dd9b6a230641e71faac63479403783946461fd0c646caa67aa0fc200d250e",
+    "output": "public/portal/news-oil-tankers-1280.webp",
+    "output_sha256": "90a05a99b917e273a0a453f98bff7ccc3d795657fc5691cd9d6f6ff4008f555b",
+    "dimensions": [
+      1280,
+      838
+    ],
+    "bytes": 138924,
+    "method": "Pillow WebP quality=82, LANCZOS, no crop, RGB"
+  },
+  {
+    "source": "public/portal/news-chemical-tank.jpg",
+    "source_sha256": "d248fff90c62860220e2aa0126bb814f2244570a17a9a334a5637d83aab455ed",
+    "output": "public/portal/news-chemical-tank-640.webp",
+    "output_sha256": "e73de02f8b633da2add17b5403fe73c794ded5f88d1134ce2d5b19afa8964697",
+    "dimensions": [
+      639,
+      422
+    ],
+    "bytes": 51438,
+    "method": "Pillow WebP quality=82, LANCZOS, no crop, RGB"
+  },
+  {
+    "source": "public/portal/news-chemical-tank.jpg",
+    "source_sha256": "d248fff90c62860220e2aa0126bb814f2244570a17a9a334a5637d83aab455ed",
+    "output": "public/portal/news-chemical-tank-1280.webp",
+    "output_sha256": "3df47d353c30e5b713fd471ba74b9e59c0a3fa250e7a28dfd3e83dbcc9d61874",
+    "dimensions": [
+      1280,
+      845
+    ],
+    "bytes": 110868,
+    "method": "Pillow WebP quality=82, LANCZOS, no crop, RGB"
+  },
+  {
+    "source": "public/portal/news-rail-containers.jpg",
+    "source_sha256": "b59b478bb5c85987e05b0bb101161e7bd6997cf7504e730ab4e075ff42565f20",
+    "output": "public/portal/news-rail-containers-640.webp",
+    "output_sha256": "38a281cfd4b4e94c6b69768e25efc3e90d34793ae1fcc397f63a45ce0b421bd1",
+    "dimensions": [
+      639,
+      466
+    ],
+    "bytes": 36580,
+    "method": "Pillow WebP quality=82, LANCZOS, no crop, RGB"
+  },
+  {
+    "source": "public/portal/news-rail-containers.jpg",
+    "source_sha256": "b59b478bb5c85987e05b0bb101161e7bd6997cf7504e730ab4e075ff42565f20",
+    "output": "public/portal/news-rail-containers-1280.webp",
+    "output_sha256": "4d216d772bfa6ee0c6452660d57dd64a4398ba42060433bbe6a5c7e477e9280c",
+    "dimensions": [
+      686,
+      500
+    ],
+    "bytes": 41470,
+    "method": "Pillow WebP quality=82, LANCZOS, no crop, RGB"
+  },
+  {
+    "source": "public/portal/news-tank-containers.jpg",
+    "source_sha256": "db799fd8736553090e0d9d32fa7699d52a30f6e1073c32c0d397aa902f1f316e",
+    "output": "public/portal/news-tank-containers-640.webp",
+    "output_sha256": "89606aa0675f3a8f081442af8524a28e97bfedd9e2aa3d54463696e8cae2fe78",
+    "dimensions": [
+      640,
+      358
+    ],
+    "bytes": 32062,
+    "method": "Pillow WebP quality=82, LANCZOS, no crop, RGB"
+  },
+  {
+    "source": "public/portal/news-tank-containers.jpg",
+    "source_sha256": "db799fd8736553090e0d9d32fa7699d52a30f6e1073c32c0d397aa902f1f316e",
+    "output": "public/portal/news-tank-containers-1280.webp",
+    "output_sha256": "b0120a881d3ec3414665335db79a5cda2c6327ec887a912aaeee25ff1a3be904",
+    "dimensions": [
+      1280,
+      716
+    ],
+    "bytes": 68442,
+    "method": "Pillow WebP quality=82, LANCZOS, no crop, RGB"
+  },
+  {
+    "source": "public/portal/news-terminal-crane.jpg",
+    "source_sha256": "422b7bd079e284a5ec994e7ada6f79f76b8f19e80b8420de8722b0d556246cb8",
+    "output": "public/portal/news-terminal-crane-640.webp",
+    "output_sha256": "8933f27d8053855a84253dc4f46b64b8196c12f2a1fd68baf53827bca03e1b85",
+    "dimensions": [
+      639,
+      426
+    ],
+    "bytes": 52160,
+    "method": "Pillow WebP quality=82, LANCZOS, no crop, RGB"
+  },
+  {
+    "source": "public/portal/news-terminal-crane.jpg",
+    "source_sha256": "422b7bd079e284a5ec994e7ada6f79f76b8f19e80b8420de8722b0d556246cb8",
+    "output": "public/portal/news-terminal-crane-1280.webp",
+    "output_sha256": "3d05f26c049c2e48227967c6cde6015cf2fd80dcbb443b8fb3cc56675fd47011",
+    "dimensions": [
+      860,
+      573
+    ],
+    "bytes": 80944,
+    "method": "Pillow WebP quality=82, LANCZOS, no crop, RGB"
+  }
+]

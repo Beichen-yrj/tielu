@@ -76,6 +76,10 @@ Vite 将 `/api` 代理到 `http://127.0.0.1:8000`；部署到其他域名时可�
 
 ## 验证命令
 
+门户图片优化：原始 JPG 保留在 `public/portal/`，使用 Pillow 执行 `python scripts/optimize_portal_images.py` 可重新生成 WebP、尺寸映射和哈希清单。手机轮播使用 960 宽版本，其他门户图片使用 `srcSet` 选择尺寸；图片提供固有尺寸以预留布局空间。轮播在新图解码后切换，离屏、后台或系统偏好减少动态效果时停止自动播放。
+
+门户浏览器回归：构建后启动 `npm run preview -- --host 127.0.0.1 --port 4175`，再执行 `node tests/portal-mobile.cjs`。可用 `PLAYWRIGHT_MODULE`、`PLAYWRIGHT_EXECUTABLE` 指定现有 Playwright 和 Chromium。回归覆盖手机资源选择、延迟图片加载时保留旧图、离屏暂停与恢复、加载失败、桌面减少动态效果设置及登录入口；浏览器模拟不等同于真实手机流畅度验证。
+
 - 前端 lint：`npm run lint -- src`
 - 前端构建：`npm run build`
 - 后端测试：`python -m pytest backend/tests -q`

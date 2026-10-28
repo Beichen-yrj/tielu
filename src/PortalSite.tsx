@@ -5,15 +5,18 @@ import {
 } from 'lucide-react'
 import logo from './assets/logo.webp'
 import { SOFTWARE_ALT_TEXT, SOFTWARE_FULL_NAME, SOFTWARE_SHORT_NAME } from './brand'
+import { PortalHero } from './PortalHero'
+import { portalImageSizes } from './portalImageSizes'
 import './Portal.css'
 
-const heroSlides = [
-  { src: '/portal/hero-locomotive.jpg', label: '铁路货运列车驶出隧道' },
-  { src: '/portal/hero-heavy-transport.jpg', label: '铁路大型装备运输作业' },
-  { src: '/portal/hero-container-yard.jpg', label: '铁路集装箱场站装卸作业' },
-]
 const overviewImage = '/portal/overview-terminal.jpg'
 const showcaseImage = '/portal/showcase-container-loading.jpg'
+
+function PortalImage({ src, alt, sizes, eager = false }: { src: string; alt: string; sizes: string; eager?: boolean }) {
+  const name = src.replace(/\.jpg$/, '')
+  const [width, height] = portalImageSizes[src.split('/').pop()!]
+  return <img src={`${name}-1280.webp`} srcSet={`${name}-640.webp 640w, ${name}-1280.webp ${width}w`} sizes={sizes} width={width} height={height} alt={alt} loading={eager ? 'eager' : 'lazy'} decoding="async" />
+}
 
 type PortalNavItem = { path: string; label: string; desc: string }
 
@@ -185,7 +188,7 @@ function PortalHeading({ en, title, desc }: { en: string; title: string; desc: s
 function NewsCard({ item, onOpen }: { item: NewsItem; onOpen: (id: string) => void }) {
   return <article className="portal-news-card">
     <button className="portal-news-cover" onClick={() => onOpen(item.id)} aria-label={`查看 ${item.title}`}>
-      <img src={item.cover} alt={item.title} loading="lazy" decoding="async" />
+      <PortalImage src={item.cover} alt={item.title} sizes="(max-width: 760px) 100vw, 33vw" />
     </button>
     <div className="portal-news-body">
       <div className="portal-news-meta"><span className="portal-news-tag"><Newspaper size={12} />{item.category}</span><span><CalendarDays size={12} />{item.date}</span></div>
@@ -199,14 +202,7 @@ function NewsCard({ item, onOpen }: { item: NewsItem; onOpen: (id: string) => vo
 export function PortalSite({ onEnter }: { onEnter: () => void }) {
   const route = usePortalRoute()
   const [menuOpen, setMenuOpen] = useState(false)
-  const [heroIndex, setHeroIndex] = useState(0)
-  const [heroPaused, setHeroPaused] = useState(false)
   useEffect(() => { window.scrollTo({ top: 0 }) }, [route])
-  useEffect(() => {
-    if (route !== '/' || heroPaused) return
-    const timer = window.setInterval(() => setHeroIndex((current) => (current + 1) % heroSlides.length), 6200)
-    return () => window.clearInterval(timer)
-  }, [route, heroPaused])
 
   const newsId = route.startsWith('/news/') ? route.slice('/news/'.length) : ''
   const activePath = newsId ? '/news' : route
@@ -216,7 +212,6 @@ export function PortalSite({ onEnter }: { onEnter: () => void }) {
   const navigate = (path: string) => { setMenuOpen(false); window.location.hash = `#${path}` }
   const requestEntry = () => { setMenuOpen(false); onEnter() }
   const openNews = (id: string) => navigate(`/news/${id}`)
-  const hero = heroSlides[heroIndex]
 
   let page: React.ReactNode
   if (detail) {
@@ -247,14 +242,7 @@ export function PortalSite({ onEnter }: { onEnter: () => void }) {
   }
 
   return <div className="portal-page">
-    <header
-      className={`portal-hero ${isHome ? '' : 'portal-sub-hero'}`}
-      onMouseEnter={() => isHome && setHeroPaused(true)}
-      onMouseLeave={() => setHeroPaused(false)}
-    >
-      <div className="portal-hero-media" aria-hidden="true">
-        {(isHome ? [hero] : [heroSlides[0]]).map((slide) => <span key={slide.src} className="active" style={{ backgroundImage: `url(${slide.src})` }} />)}
-      </div>
+    <PortalHero isHome={isHome}>
       <nav className="portal-nav">
         <button className="portal-brand" onClick={() => navigate('/')}><img src={logo} alt={SOFTWARE_ALT_TEXT} /><span><strong>{SOFTWARE_SHORT_NAME}</strong></span></button>
         <button className="portal-menu-toggle" aria-label="打开门户导航" onClick={() => setMenuOpen((open) => !open)}><Menu size={25} /></button>
@@ -272,13 +260,7 @@ export function PortalSite({ onEnter }: { onEnter: () => void }) {
       {isHome
         ? <div className="portal-hero-copy"><span>RAILWAY DANGEROUS GOODS SAFETY</span><h1>{SOFTWARE_FULL_NAME}</h1><p>专注铁路危险货物运输风险分级管控与隐患排查治理</p><button className="portal-hero-enter" onClick={requestEntry}>进入管理平台 <ArrowRight size={16} /></button></div>
         : <div className="portal-sub-copy"><span>{activeNav.label}</span><h1>{detail ? '新闻详情' : activeNav.label}</h1><p>{detail ? detail.title : activeNav.desc}</p></div>}
-      {isHome && <div className="portal-hero-controls" aria-label="首屏图片轮播控制">
-        <button type="button" className="portal-hero-arrow" aria-label="上一张图片" onClick={() => setHeroIndex((heroIndex - 1 + heroSlides.length) % heroSlides.length)}><ArrowLeft size={17} /></button>
-        <div className="portal-hero-dots">{heroSlides.map((slide, index) => <button type="button" key={slide.src} className={`portal-hero-dot ${index === heroIndex ? 'active' : ''}`} aria-label={`切换到第 ${index + 1} 张：${slide.label}`} aria-current={index === heroIndex ? 'true' : undefined} onClick={() => setHeroIndex(index)} />)}</div>
-        <button type="button" className="portal-hero-arrow" aria-label="下一张图片" onClick={() => setHeroIndex((heroIndex + 1) % heroSlides.length)}><ArrowRight size={17} /></button>
-        <span className="portal-hero-caption">{hero.label}</span>
-      </div>}
-    </header>
+    </PortalHero>
 
     <div className="portal-breadcrumb">
       <MapPin size={17} /><span>您的当前位置：</span>
@@ -307,7 +289,7 @@ function HomePage({ onEnter, onNavigate }: { onEnter: () => void; onNavigate: (p
           <p>面向铁路局、场站及安全管理人员，将风险辨识、静态评估、动态作业评分、专家研判、隐患整改和双人复核统一到一套业务链路中。平台通过风险四色分级、5 × 5 矩阵、任务进度与历史趋势，帮助管理人员及时掌握风险变化，推动风险管控与隐患治理全过程闭环。</p>
           <div className="portal-overview-actions"><button onClick={onEnter}>进入平台演示 <ArrowRight size={16} /></button><span><Shield size={17} /> 当前为前端交互演示版</span></div>
         </div>
-        <div className="portal-product-visual"><img src={overviewImage} alt="铁路集装箱货运场站" loading="lazy" decoding="async" /><small>铁路集装箱货运场站</small></div>
+        <div className="portal-product-visual"><PortalImage src={overviewImage} alt="铁路集装箱货运场站" sizes="(max-width: 900px) 100vw, 45vw" /><small>铁路集装箱货运场站</small></div>
       </div>
     </section>
 
@@ -343,7 +325,7 @@ function HomePage({ onEnter, onNavigate }: { onEnter: () => void; onNavigate: (p
           <p>管理端聚焦风险态势、任务统筹和审核决策；移动端可用于现场检查、证据采集与整改反馈。当前演示已完成管理端核心页面，移动作业端作为后续扩展范围。</p>
           <button onClick={onEnter}>打开平台演示 <ArrowRight size={16} /></button>
         </div>
-        <div className="portal-showcase-image"><img src={showcaseImage} alt="铁路货运列车作业场景" loading="lazy" decoding="async" /><span>铁路货运作业场景</span></div>
+        <div className="portal-showcase-image"><PortalImage src={showcaseImage} alt="铁路货运列车作业场景" sizes="(max-width: 900px) 100vw, 50vw" /><span>铁路货运作业场景</span></div>
       </div>
     </section>
   </>
@@ -442,7 +424,7 @@ function ShowcasePage({ onEnter }: { onEnter: () => void }) {
           <p>管理端聚焦风险态势、任务统筹和审核决策；移动端可用于现场检查、证据采集与整改反馈。当前演示已完成管理端核心页面，移动作业端作为后续扩展范围。</p>
           <button onClick={onEnter}>打开平台演示 <ArrowRight size={16} /></button>
         </div>
-        <div className="portal-showcase-image"><img src={showcaseImage} alt="铁路货运列车作业场景" loading="lazy" decoding="async" /><span>铁路货运作业场景</span></div>
+        <div className="portal-showcase-image"><PortalImage src={showcaseImage} alt="铁路货运列车作业场景" sizes="(max-width: 900px) 100vw, 50vw" /><span>铁路货运作业场景</span></div>
       </div>
     </section>
     <section className="portal-text portal-section">
@@ -480,7 +462,7 @@ function NewsDetail({ item, onBack }: { item: NewsItem; onBack: () => void }) {
       </div>
       <h1>{item.title}</h1>
       <p className="portal-article-summary">{item.summary}</p>
-      <div className="portal-article-cover"><img src={item.cover} alt={item.title} decoding="async" /></div>
+      <div className="portal-article-cover"><PortalImage src={item.cover} alt={item.title} sizes="(max-width: 900px) 100vw, 900px" eager /></div>
       <p className="portal-article-caption">{item.imageNote}</p>
       <div className="portal-article-body">{item.body.map((paragraph, index) => <p key={index}>{paragraph}</p>)}</div>
       <p className="portal-article-note">来源：{item.source}。本栏目内容用于平台门户演示，引用信息以原始发布渠道为准。</p>
