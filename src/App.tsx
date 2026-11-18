@@ -3,7 +3,7 @@ import {
   Activity, AlertTriangle, ArrowDownRight, ArrowRight, Bell, Boxes, CalendarDays,
   Check, ChevronDown, CircleHelp, ClipboardCheck, Clock3,
   Bot, Download, Filter, Gauge, LayoutDashboard, LogIn, LogOut, MapPin, Menu, MoreHorizontal,
-  Search, Shield, ShieldAlert, TrainFront, TrendingUp, UserCircle, UserPlus, X,
+  Search, Settings, Shield, ShieldAlert, TrainFront, TrendingUp, UserCircle, UserPlus, X,
 } from 'lucide-react'
 import {
   Area, CartesianGrid, Cell, ComposedChart, Line, Pie,
@@ -24,6 +24,7 @@ import { RectificationDrawer } from './RectificationDrawer'
 import { HistoryPanel } from './HistoryPanel'
 import { MasterPanel } from './MasterPanel'
 import { ProfilePanel, type ProfileStats } from './ProfilePanel'
+import { AdminPanel } from './AdminPanel'
 import { SafetyAssessmentPanel } from './SafetyAssessmentPanel'
 import { HazardAnalysisPanel, SafetyTrendPanel } from './HazardAnalysisPanel'
 import type { InspectionResult } from './inspection'
@@ -47,7 +48,7 @@ const colors: Record<Risk, string> = { 重大: '#d84343', 较大: '#e97825', 一
 const defaultNavItems: { name: Page; icon: typeof LayoutDashboard }[] = [
   { name: '总览', icon: LayoutDashboard }, { name: '风险评估', icon: ShieldAlert },
   { name: '整改闭环', icon: ClipboardCheck }, { name: '隐患分析', icon: AlertTriangle },
-  { name: '基础资料', icon: Boxes }, { name: 'AI助手', icon: Bot }, { name: '个人中心', icon: UserCircle },
+  { name: '基础资料', icon: Boxes }, { name: '平台管理', icon: Settings }, { name: 'AI助手', icon: Bot }, { name: '个人中心', icon: UserCircle },
 ]
 
 const safetyNavItems: { name: Page; icon: typeof LayoutDashboard }[] = [
@@ -257,6 +258,7 @@ function PlatformApp({ onBack, onLogout, onAvatarChange, userName, userRole, use
         {page === '整改闭环' && <Rectifications view={rectificationView} setView={setRectificationView} issues={filteredIssues} allIssues={scopeIssues} filter={filter} setFilter={setFilter} search={search} setSearch={setSearch} onSelect={setSelectedIssue} onRefresh={async () => { await refreshHazardRecords(true) }} completed={completed} scopeText={scopeLabel(scopeBureau, scopeStation)} />}
         {page === '历史分析' && (isAssessor ? <SafetyTrendPanel records={hazardRecords} onBack={() => setPage('隐患分析')} /> : <HistoryPanel records={assessments} issues={scopeIssues} period={period} setPeriod={setPeriod} onBack={() => setPage('总览')} onOpen={(id) => { setActiveAssessmentId(id); setPage('风险评估') }} onNotify={notify} />)}
         {page === '基础资料' && <MasterPanel onNotify={notify} />}
+        {page === '平台管理' && role === 'admin' && <AdminPanel currentUserId={userId} onNotify={notify} />}
         {page === 'AI助手' && <RoleAiAssistant key={role} records={scopeRecords} issues={scopeIssues} role={role} />}
         {page === '个人中心' && <ProfilePanel userName={userName} userRole={userRole} avatarData={avatarData} stats={profileStats} onAvatarChange={onAvatarChange} onLogout={onLogout} onNotify={notify} offline={offline} />}
       </main>
@@ -481,7 +483,7 @@ function RoleAiAssistant({ records, issues, role }: { records: HazardAssessmentR
       setLoading(false)
     }
   }
-  return <div className="content"><PageHeading eyebrow={`辅助研判 · ${roleName}`} title="AI 安全助手" description="快捷问题使用本地知识库，自由提问调用 DeepSeek，不替代专业判断" /><div className="ai-layout"><aside className="panel ai-suggestions"><PanelTitle title="快捷提问" subtitle={`${roleName}专属 · 本地知识库即时回答`} />{quickQuestions.map((text) => <button key={text} disabled={loading} onClick={() => void ask(text)}><Bot size={16} />{text}<ArrowRight size={14} /></button>)}</aside><section className="panel ai-chat"><div className="ai-chat-head"><Bot size={20} /><div><strong>铁路危货安全助手</strong><span>当前数据：{records.length} 份评估 · {issues.length} 项整改</span></div></div><div className="ai-messages">{messages.map((message, index) => <div key={index} className={`ai-message ${message.role}`}><span>{message.role === 'assistant' ? <Bot size={16} /> : <UserCircle size={16} />}</span><p>{message.text}{message.source && <small className="ai-source">{message.source}</small>}</p></div>)}{loading && <div className="ai-message assistant"><span><Bot size={16} /></span><p>正在请求 DeepSeek…</p></div>}</div><div className="ai-input"><input value={question} disabled={loading} onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void ask() }} placeholder="快捷问题可本地回答，自由提问将调用 DeepSeek" /><button className="button primary" disabled={loading || !question.trim()} onClick={() => void ask()}>{loading ? '请求中…' : '发送'}</button></div><div className="report-note"><Shield size={15} />AI 建议仅供辅助研判，不得直接改变风险等级、生成正式隐患或完成整改销号。DeepSeek 密钥仅保存在后端环境变量。</div></section></div></div>
+  return <div className="content"><PageHeading eyebrow={`辅助研判 · ${roleName}`} title="AI 安全助手" description="快捷问题使用本地知识库，自由提问调用平台统一配置的智能体服务，不替代专业判断" /><div className="ai-layout"><aside className="panel ai-suggestions"><PanelTitle title="快捷提问" subtitle={`${roleName}专属 · 本地知识库即时回答`} />{quickQuestions.map((text) => <button key={text} disabled={loading} onClick={() => void ask(text)}><Bot size={16} />{text}<ArrowRight size={14} /></button>)}</aside><section className="panel ai-chat"><div className="ai-chat-head"><Bot size={20} /><div><strong>铁路危货安全助手</strong><span>当前数据：{records.length} 份评估 · {issues.length} 项整改</span></div></div><div className="ai-messages">{messages.map((message, index) => <div key={index} className={`ai-message ${message.role}`}><span>{message.role === 'assistant' ? <Bot size={16} /> : <UserCircle size={16} />}</span><p>{message.text}{message.source && <small className="ai-source">{message.source}</small>}</p></div>)}{loading && <div className="ai-message assistant"><span><Bot size={16} /></span><p>正在请求平台智能体…</p></div>}</div><div className="ai-input"><input value={question} disabled={loading} onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void ask() }} placeholder="快捷问题可本地回答，自由提问将调用平台智能体" /><button className="button primary" disabled={loading || !question.trim()} onClick={() => void ask()}>{loading ? '请求中…' : '发送'}</button></div><div className="report-note"><Shield size={15} />AI 建议仅供辅助研判，不得直接改变风险等级、生成正式隐患或完成整改销号。智能体密钥仅保存在后端，全平台用户共用超级管理员配置。</div></section></div></div>
 }
 
 export default App

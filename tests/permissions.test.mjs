@@ -26,3 +26,10 @@ test('assessment and history access stays available to assessors; unknown roles 
   assert.equal(canAccessPage('safety_manager', '整改闭环'), true)
   assert.equal(canAccessPage('admin', '整改闭环'), true)
 })
+
+test('only the super administrator can enter platform management', () => {
+  assert.equal(canAccessPage('admin', '平台管理'), true)
+  for (const role of ['ordinary', 'operator', 'project_manager', 'safety_manager', 'unknown-role']) {
+    assert.equal(canAccessPage(role, '平台管理'), false, role)
+  }
+})

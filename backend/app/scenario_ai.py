@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy.orm import Session
 
+from .admin import resolve_ai_config
 from .config import get_settings
 from .database import get_db
 from .hazard_assessments import require_reader
@@ -52,9 +53,9 @@ reasons/missing/actions均为短字符串数组。解释危险源指标、检测
 
 
 @router.get("/scenario-status")
-def scenario_status(user: User = Depends(require_reader)):
-    settings = get_settings()
-    return {"configured": bool(settings.deepseek_api_key), "provider": "deepseek", "model": settings.deepseek_model}
+def scenario_status(user: User = Depends(require_reader), db: Session = Depends(get_db)):
+    api_key, _, model = resolve_ai_config(db, get_settings())
+    return {"configured": bool(api_key), "provider": "deepseek", "model": model}
 
 
 @router.post("/scenario-plan")
@@ -74,14 +75,14 @@ async def scenario_plan(payload: ScenarioPlanRequest, user: User = Depends(requi
             "finding", "action", "basis", "data_name", "measured_value", "unit", "standard_value", "has_hazard",
         ]}
         context["cargo"] = record.cargo
-    settings = get_settings()
-    if not settings.deepseek_api_key:
-        raise HTTPException(status_code=503, detail="在线 AI 未配置；请在后端设置 DEEPSEEK_API_KEY，本地规则分析仍可使用")
+    api_key, base_url, model = resolve_ai_config(db, get_settings())
+    if not api_key:
+        raise HTTPException(status_code=503, detail="在线 AI 未配置；请联系超级管理员在平台管理中配置智能体 API，本地规则分析仍可使用")
     try:
         async with httpx.AsyncClient(timeout=httpx.Timeout(40, connect=8)) as client:
-            response = await client.post(f"{settings.deepseek_base_url.rstrip('/')}/chat/completions", headers={
-                "Authorization": f"Bearer {settings.deepseek_api_key}", "Content-Type": "application/json",
-            }, json={"model": settings.deepseek_model, "messages": [
+            response = await client.post(f"{base_url.rstrip('/')}/chat/completions", headers={
+                "Authorization": f"Bearer {api_key}", "Content-Type": "application/json",
+            }, json={"model": model, "messages": [
                 {"role": "system", "content": PROMPT}, {"role": "user", "content": json.dumps(context, ensure_ascii=False)},
             ], "response_format": {"type": "json_object"}, "temperature": 0.1, "max_tokens": 1800, "stream": False})
             response.raise_for_status()
@@ -98,4 +99,4 @@ async def scenario_plan(payload: ScenarioPlanRequest, user: User = Depends(requi
         raise HTTPException(status_code=502, detail="在线 AI 连接失败，请检查后端服务配置") from exc
     except (ValidationError, ValueError, KeyError, IndexError, TypeError) as exc:
         raise HTTPException(status_code=502, detail="AI 返回内容不符合情景约束，未应用任何建议") from exc
-    return {**result.model_dump(), "origin": "deepseek", "model": settings.deepseek_model, "source_version": version}
+    return {**result.model_dump(), "origin": "deepseek", "model": model, "source_version": version}

@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from . import models  # noqa: F401
 from .auth import ensure_default_admin
 from .auth import router as auth_router
+from .admin import router as admin_router
 from .ai import router as ai_router
 from .scenario_ai import router as scenario_ai_router
 from .assessments import router as assessments_router
@@ -70,6 +71,7 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type"],
 )
 app.include_router(auth_router)
+app.include_router(admin_router)
 app.include_router(feedback_router)
 app.include_router(assessments_router)
 app.include_router(hazard_assessments_router)

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from datetime import datetime
+from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -70,6 +71,107 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
     expires_in: int
     user: UserResponse
+
+
+class AdminUserCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    username: str = Field(min_length=2, max_length=50)
+    password: str = Field(min_length=8, max_length=128)
+    display_name: str = Field(min_length=2, max_length=50)
+    role: str = Field(default="ordinary", max_length=30)
+
+    @field_validator("username")
+    @classmethod
+    def validate_admin_username(cls, value: str) -> str:
+        cleaned = value.strip()
+        if len(cleaned) < 2 or not USERNAME_PATTERN.fullmatch(cleaned):
+            raise ValueError("账号只能包含中文、字母、数字、点、短横线和下划线")
+        return cleaned
+
+    @field_validator("role")
+    @classmethod
+    def validate_admin_role(cls, value: str) -> str:
+        if value not in {"admin", *PUBLIC_ROLES}:
+            raise ValueError("账号角色无效")
+        return value
+
+    @field_validator("display_name")
+    @classmethod
+    def validate_display_name(cls, value: str) -> str:
+        cleaned = value.strip()
+        if len(cleaned) < 2:
+            raise ValueError("显示名称至少需要两个有效字符")
+        return cleaned
+
+
+class AdminUserUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    display_name: str | None = Field(default=None, min_length=2, max_length=50)
+    role: str | None = Field(default=None, max_length=30)
+    is_active: bool | None = None
+
+    @field_validator("role")
+    @classmethod
+    def validate_update_role(cls, value: str | None) -> str | None:
+        if value is not None and value not in {"admin", *PUBLIC_ROLES}:
+            raise ValueError("账号角色无效")
+        return value
+
+    @field_validator("display_name")
+    @classmethod
+    def validate_display_name(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return AdminUserCreate.validate_display_name(value)
+
+
+class AdminPasswordReset(BaseModel):
+    new_password: str = Field(min_length=8, max_length=128)
+
+
+class AdminUserResponse(UserResponse):
+    is_active: bool
+
+
+class AiGlobalConfigUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    api_key: str | None = Field(default=None, max_length=300)
+    clear_api_key: bool = False
+    base_url: str | None = Field(default=None, max_length=300)
+    model: str | None = Field(default=None, max_length=100)
+
+    @field_validator("base_url")
+    @classmethod
+    def validate_base_url(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        cleaned = value.strip().rstrip("/")
+        parsed = urlsplit(cleaned)
+        if (parsed.scheme not in {"http", "https"} or not parsed.hostname
+                or parsed.username is not None or parsed.password is not None
+                or parsed.query or parsed.fragment or any(char.isspace() for char in cleaned)):
+            raise ValueError("请输入有效的 HTTP(S) 接口地址，密钥请填入 API 密钥栏")
+        try:
+            parsed.port
+        except ValueError:
+            raise ValueError("接口端口无效") from None
+        return cleaned
+
+    @field_validator("api_key", "model")
+    @classmethod
+    def validate_single_line(cls, value: str | None) -> str | None:
+        if value is not None and any(char in value for char in "\r\n\x00"):
+            raise ValueError("配置内容不能包含换行或控制字符")
+        return value.strip() if value is not None else None
+
+
+class AiGlobalConfigResponse(BaseModel):
+    configured: bool
+    api_key_masked: str
+    base_url: str
+    model: str
+    source: str
+    updated_at: datetime | None = None
 
 
 class MessageResponse(BaseModel):

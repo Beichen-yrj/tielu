@@ -4,9 +4,12 @@ import json
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
 
+from .admin import resolve_ai_config
 from .auth import get_current_user
 from .config import get_settings
+from .database import get_db
 from .models import User
 from .schemas import AiChatRequest, AiChatResponse
 
@@ -28,20 +31,20 @@ ROLE_GUIDANCE = {
 
 
 @router.post("/chat", response_model=AiChatResponse)
-async def chat(payload: AiChatRequest, user: User = Depends(get_current_user)) -> AiChatResponse:
+async def chat(payload: AiChatRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> AiChatResponse:
     role = "ordinary" if user.role == "operator" else user.role
     if role not in ROLE_GUIDANCE:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="当前角色无 AI 助手权限")
-    settings = get_settings()
-    if not settings.deepseek_api_key:
+    api_key, base_url, model = resolve_ai_config(db, get_settings())
+    if not api_key:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="AI 服务尚未配置，请在后端设置 DEEPSEEK_API_KEY",
+            detail="AI 服务尚未配置，请联系超级管理员在平台管理中配置智能体 API（后端也可设置 DEEPSEEK_API_KEY）",
         )
 
     context_json = json.dumps(payload.context.model_dump(), ensure_ascii=False)
     request_body = {
-        "model": settings.deepseek_model,
+        "model": model,
         "messages": [
             {"role": "system", "content": f"{SYSTEM_PROMPT}\n当前认证角色：{ROLE_GUIDANCE[role]}"},
             {
@@ -53,13 +56,13 @@ async def chat(payload: AiChatRequest, user: User = Depends(get_current_user)) -
         "max_tokens": 1000,
         "stream": False,
     }
-    url = f"{settings.deepseek_base_url.rstrip('/')}/chat/completions"
+    url = f"{base_url.rstrip('/')}/chat/completions"
     try:
         async with httpx.AsyncClient(timeout=httpx.Timeout(30.0, connect=8.0)) as client:
             response = await client.post(
                 url,
                 headers={
-                    "Authorization": f"Bearer {settings.deepseek_api_key}",
+                    "Authorization": f"Bearer {api_key}",
                     "Content-Type": "application/json",
                 },
                 json=request_body,
@@ -79,4 +82,4 @@ async def chat(payload: AiChatRequest, user: User = Depends(get_current_user)) -
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="AI 服务返回了无法识别的数据") from exc
     if not answer:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="AI 服务未返回有效回答")
-    return AiChatResponse(answer=answer, model=settings.deepseek_model)
+    return AiChatResponse(answer=answer, model=model)

@@ -10,13 +10,14 @@ from fastapi.testclient import TestClient
 from app import scenario_ai as ai
 from app.auth import get_current_user
 from app.database import get_db
+from app.models import HazardAssessment
 
 
 def client_for(monkeypatch, answer=None, record=None, key="test-only"):
     app = FastAPI()
     app.include_router(ai.router)
     app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(role="safety_manager")
-    app.dependency_overrides[get_db] = lambda: SimpleNamespace(get=lambda *args: record)
+    app.dependency_overrides[get_db] = lambda: SimpleNamespace(get=lambda model, key: record if model is HazardAssessment else None)
     monkeypatch.setattr(ai, "get_settings", lambda: SimpleNamespace(deepseek_api_key=key, deepseek_base_url="https://example.invalid", deepseek_model="test-model"))
     sent = []
 
