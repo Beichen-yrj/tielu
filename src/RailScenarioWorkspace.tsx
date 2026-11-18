@@ -3,18 +3,19 @@ import { Download, Play, RotateCcw, Save, TrainFront, Upload, X } from 'lucide-r
 import type { HazardAssessmentRecord } from './api/hazardAssessments'
 import { compressImage } from './assessmentPhotos'
 import { buildSceneDocument, buildSceneWorkbook, downloadSceneFile } from './sceneExport'
-import { demoScene, emptyScene, parseSceneFile, sceneBoundary, sceneEvents, sceneFacts, sceneFromSource, sceneObjects, sceneRegions, sceneStages, sourceFromAssessment, stageExplanation, validateScene, type SceneDraft } from './railScenario'
+import { emptyScene, parseSceneFile, sceneBoundary, sceneEvents, sceneFacts, sceneFromSource, sceneObjects, sceneRegions, sceneStages, sourceFromAssessment, stageExplanation, validateScene, type SceneDraft } from './railScenario'
 import { sceneEngineConfig, platformSceneRecord, materialTypes as materialNames } from './railHazardModel'
 import { RailSceneAdvisor } from './RailSceneAdvisor'
 import './RailScenarioWorkspace.css'
 
 type Props = { records: HazardAssessmentRecord[]; sourceLabel: string; userKey: string; initialId: string; onClose: () => void; onOpenSource: (id: string) => void }
 export function RailScenarioWorkspace({ records, sourceLabel, userKey, initialId, onClose, onOpenSource }: Props) {
-  const initial = records.find(r => r.id === initialId)
+  const latest = [...records].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))[0]
+  const initial = records.find(r => r.id === initialId) || latest
   const [draft, setDraft] = useState<SceneDraft>(() => initial ? sceneFromSource(sourceFromAssessment(initial, sourceLabel)) : emptyScene())
   const [applied, setApplied] = useState<SceneDraft | null>(null)
   const [tab, setTab] = useState<'configure' | 'play' | 'report' | 'browse'>('configure')
-  const [selectedId, setSelectedId] = useState(initialId)
+  const [selectedId, setSelectedId] = useState(initial?.id || '')
   const [imported, setImported] = useState<SceneDraft | null>(null)
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
@@ -27,6 +28,18 @@ export function RailScenarioWorkspace({ records, sourceLabel, userKey, initialId
   const uploadSequence = useRef(0)
   const storageKey = `rail-scene-draft-v1:${userKey}`
   const patch = (value: Partial<SceneDraft>) => { setDraft(d => ({ ...d, ...value })); setNotice(''); setErrors([]) }
+  // The platform list can arrive after this modal opens. Once it does, bind the
+  // latest authorized record automatically instead of exposing a manual form.
+  // oxlint-disable react/set-state-in-effect
+  useEffect(() => {
+    if (draft.source || !records.length) return
+    const current = records.find(r => r.id === initialId) || [...records].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))[0]
+    if (!current) return
+    setSelectedId(current.id)
+    setDraft(sceneFromSource(sourceFromAssessment(current, sourceLabel)))
+    setNotice('原平台评估记录已同步，场景字段已自动带入。')
+  }, [draft.source, initialId, records, sourceLabel])
+  // oxlint-enable react/set-state-in-effect
   const send = useCallback((data: object) => frame.current?.contentWindow?.postMessage(data, window.location.origin), [])
   const syncPlatform = useCallback(() => send({ type: 'rail-platform-records', records: records.map(r => platformSceneRecord(sourceFromAssessment(r, sourceLabel), emptyScene())), sourceLabel }), [records, sourceLabel, send])
   const initializeFrame = () => { if (applied && tab === 'play') send({ type: 'rail-scene-configure', config: sceneEngineConfig(applied) }); if (tab === 'browse') syncPlatform() }
@@ -49,9 +62,9 @@ export function RailScenarioWorkspace({ records, sourceLabel, userKey, initialId
   const changeTab = (next: typeof tab) => { setClean(false); setReady(false); setTab(next) }
   const selectSource = () => {
     uploadSequence.current++
-    if (selectedId === 'demo') setDraft(demoScene())
-    else if (selectedId === '') setDraft(emptyScene())
-    else { const r = records.find(r => r.id === selectedId); if (!r) { setNotice('来源记录已不可用，请重新选择'); return }; setDraft(sceneFromSource(sourceFromAssessment(r, sourceLabel))) }
+    const r = records.find(r => r.id === selectedId)
+    if (!r) { setNotice('原平台暂无可用评估记录，请先在风险评估页保存记录'); return }
+    setDraft(sceneFromSource(sourceFromAssessment(r, sourceLabel)))
     setErrors([]); setImported(null); setNotice('已带入配置草稿，请核对来源、照片和模板映射；原记录保持不变。')
   }
   const persist = (value: SceneDraft) => {
@@ -65,17 +78,13 @@ export function RailScenarioWorkspace({ records, sourceLabel, userKey, initialId
     setReady(false); setPlayback({ time: 0, playing: false, rate: 1 }); setTab('play')
   }
   const restore = () => {
-    try { const text = sessionStorage.getItem(storageKey); if (!text) { setNotice('当前账号在本浏览器会话中还没有保存的配置'); return }; setImported(parseSceneFile(text)); setNotice('已读取保存的配置，请预览后确认载入，并重新确认对象映射。') } catch { setNotice('保存的配置无法读取，请使用有效的配置文件') }
+    try { const text = sessionStorage.getItem(storageKey); if (!text) { setNotice('当前账号在本浏览器会话中还没有保存的配置'); return }; setImported(parseSceneFile(text)); setNotice('已读取保存的配置，请预览后确认载入；正式应用前仍需绑定当前原平台记录。') } catch { setNotice('保存的配置无法读取，请使用有效的配置文件') }
   }
   const uploadPhoto = async (file: File) => {
     const seq = ++uploadSequence.current
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 10 * 1024 * 1024) { setNotice('请选择不超过 10 MB 的 JPG、PNG 或 WebP 图片'); return }
     setBusy(true)
     try { const photo = await compressImage(file); if (seq === uploadSequence.current) { patch({ photo, photoName: file.name, annotation: null }); setNotice('图片已载入草稿；点击图片标出问题位置，保存后可恢复。未进行 AI 识别或自动重建。') } } catch { if (seq === uploadSequence.current) setNotice('图片无法读取，请更换有效图片') } finally { if (seq === uploadSequence.current) setBusy(false) }
-  }
-  const importConfig = async (file: File) => {
-    if (file.size > 5_000_000) { setNotice('配置文件超过 5 MB'); return }
-    try { setImported(parseSceneFile(await file.text())); setNotice('文件已解析，尚未覆盖草稿。请预览确认。') } catch (e) { setNotice(e instanceof Error ? e.message : '配置文件解析失败') }
   }
   const exportFile = async (kind: 'docx' | 'xlsx' | 'json') => {
     if (!applied) return
@@ -99,12 +108,12 @@ export function RailScenarioWorkspace({ records, sourceLabel, userKey, initialId
     <div className="rail-notice" role="status" aria-live="polite">{notice || '模板配置与定性演示 · 不代表现场自动建模或实时监测'}</div>
     {tab === 'configure' && <main className="rail-config">
       <div className="rail-config-form">
-        <section className="rail-card"><h2>带入评估数据</h2><p>选择记录后先预览、核对，再确认映射到示范模板。</p><div className="rail-source-select"><select aria-label="数据来源记录" value={selectedId} onChange={e => setSelectedId(e.target.value)}><option value="">独立演练 · 手动填写</option><option value="demo">教学案例 · 罐车连接部位泄漏</option>{records.map(r => <option key={r.id} value={r.id}>{r.task_name} · {r.station} · {r.risk}</option>)}</select><button disabled={busy} onClick={selectSource}>带入并预览</button></div>{!records.length && <p>当前可访问的评估记录为空。可填写独立演练，或使用明确标识的教学案例。</p>}<div className="rail-inline-actions"><button onClick={restore}>恢复本会话配置</button><label className="rail-upload"><Upload size={14} />导入配置 JSON<input type="file" accept=".json,application/json" onChange={e => { const f = e.target.files?.[0]; if (f) void importConfig(f); e.target.value = '' }} /></label></div>
+        <section className="rail-card"><h2>原平台数据直连</h2><p>情景配置只读取当前账号可访问的原平台评估记录，自动带入危险源、检测值、风险等级、整改措施和现场照片。原始数据不会在此处手工重填。</p><div className="rail-source-select"><select aria-label="原平台评估记录" value={selectedId} onChange={e => setSelectedId(e.target.value)} disabled={!records.length}><option value="">请选择原平台评估记录</option>{records.map(r => <option key={r.id} value={r.id}>{r.task_name} · {r.station} · {r.risk}</option>)}</select><button disabled={busy || !records.length} onClick={selectSource}>同步并预览</button></div>{!records.length && <p className="rail-errors" role="alert">当前账号没有可用的原平台评估记录。请先在“风险评估”页保存记录，再打开铁路数字站场。</p>}<div className="rail-inline-actions"><button onClick={restore} disabled={!records.length}>恢复本会话配置</button></div>
         {imported && <div className="rail-import-preview"><h3>配置载入预览</h3><p>{imported.title || '未命名'} · {sceneRegions[imported.region]} · {sceneObjects[imported.zone]}</p><p>{imported.problem}</p><p>来源：{imported.source?.id || '独立演练'}；{sceneEvents[imported.event]}；照片{imported.photo ? '已附带' : '未提供'}</p><button disabled={busy} onClick={() => { uploadSequence.current++; setDraft(imported); setImported(null); setErrors([]); setNotice('已载入草稿，请重新确认映射并应用；未写入业务记录。') }}>确认载入草稿</button><button onClick={() => setImported(null)}>取消</button></div>}
         </section>
-        <section className="rail-card"><h2>选择模板与问题对象</h2><div className="rail-form-grid"><label>演示名称 *<input maxLength={120} value={draft.title} onChange={e => patch({ title: e.target.value })} /></label><label>地区示范模板<select value={draft.region} onChange={e => patch({ region: e.target.value as SceneDraft['region'], mappingConfirmed: false })}>{Object.entries(sceneRegions).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label><label>问题映射对象<select value={draft.zone} onChange={e => patch({ zone: e.target.value as SceneDraft['zone'], mappingConfirmed: false })}>{Object.entries(sceneObjects).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label><label>后果情景（人工选择）<select value={draft.event} onChange={e => patch({ event: e.target.value as SceneDraft['event'] })}>{Object.entries(sceneEvents).map(([k, v]) => <option key={k} value={k}>{v} · 定性演示</option>)}</select></label></div><label className="rail-check"><input type="checkbox" checked={draft.mappingConfirmed} onChange={e => patch({ mappingConfirmed: e.target.checked })} />我已核对问题与所选模板对象的对应关系。此为示范映射，非现场测绘位置。</label></section>
-        <section className="rail-card"><h2>物料与事故演化条件</h2><div className="rail-form-grid"><label>物料性质（需按 SDS 核实）<select value={draft.material} onChange={e => patch({ material: e.target.value as SceneDraft['material'] })}>{Object.entries(materialNames).map(([k,v]) => <option key={k} value={k}>{v}</option>)}</select></label><label>泄漏形态（演练假设）<select value={draft.release} onChange={e => patch({ release: e.target.value as SceneDraft['release'] })}><option value="seep">局部渗漏</option><option value="jet">持续喷漏</option><option value="rupture">较大破口释放</option></select></label></div>{['fire','explosion'].includes(draft.event) && <label className="rail-check"><input type="checkbox" checked={draft.ignitionConfirmed} onChange={e => patch({ ignitionConfirmed: e.target.checked })} />本次演练明确假设存在点火源</label>}{draft.event === 'explosion' && <label className="rail-check"><input type="checkbox" checked={draft.accumulationConfirmed} onChange={e => patch({ accumulationConfirmed: e.target.checked })} />本次演练明确假设存在可燃物积聚与混合条件</label>}<label className="rail-check"><input type="checkbox" checked={draft.mitigated} onChange={e => patch({ mitigated: e.target.checked })} />对比假设施加隔离、停止供料、收集及专业灭火措施（不表示原隐患已整改）</label><p>物料和事故条件决定演化分支；风险等级不直接决定火焰大小或爆炸。</p></section>
-        <section className="rail-card"><h2>问题、原因与整改</h2><label>问题描述 *<textarea maxLength={2000} rows={3} value={draft.problem} onChange={e => patch({ problem: e.target.value })} /></label><label>原因 / 演练假设<textarea maxLength={2000} rows={2} placeholder="原因未知时留空，系统显示待核实" value={draft.cause} onChange={e => patch({ cause: e.target.value })} /></label><label className="rail-check"><input type="checkbox" checked={draft.causeConfirmed} onChange={e => patch({ causeConfirmed: e.target.checked })} />该原因已由填写人核实（须提供依据）</label>{draft.causeConfirmed && <label>确认依据 *<input maxLength={1000} placeholder="现场检测、检查记录或专业确认依据" value={draft.causeEvidence} onChange={e => patch({ causeEvidence: e.target.value })} /></label>}<label>整改措施 / 防控建议<textarea rows={3} maxLength={2000} value={draft.measure} onChange={e => patch({ measure: e.target.value })} /></label><div className="rail-form-grid rail-environment"><label>温度 / °C<input type="number" min={-80} max={80} step="any" placeholder="未知" value={draft.temperature} onChange={e => patch({ temperature: e.target.value })} /></label><label>风速 / m·s⁻¹<input type="number" min={0} max={100} step="any" placeholder="未知" value={draft.wind} onChange={e => patch({ wind: e.target.value })} /></label><label>风向 / °（气象来向）<input type="number" min={0} max={359} step="any" placeholder="未知" value={draft.direction} onChange={e => patch({ direction: e.target.value })} /></label></div><p>风速与来向驱动气云及烟羽的示意漂移；不输出真实浓度或影响范围。未知条件明确标注。</p></section>
+        <section className="rail-card"><h2>自动映射的铁路场景</h2><div className="rail-form-grid"><label>平台任务 / 演示名称<input readOnly maxLength={120} value={draft.title} /></label><label>地区示范模板<select value={draft.region} disabled>{Object.entries(sceneRegions).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label><label>问题对象（自动推导）<input readOnly value={sceneObjects[draft.zone]} /></label><label>后果情景（自动推导，可切换演示分支）<select value={draft.event} onChange={e => patch({ event: e.target.value as SceneDraft['event'] })}>{Object.entries(sceneEvents).map(([k, v]) => <option key={k} value={k}>{v} · 定性演示</option>)}</select></label></div><p className="rail-source-lock">对象与默认情景根据原平台危险源、环节、维度、货物和隐患描述自动推导；平台原始记录只读，模板地区和演示分支仅控制可视化方式。</p></section>
+        <section className="rail-card"><h2>物料与事故演化条件</h2><div className="rail-form-grid"><label>物料性质（需按 SDS 核实）<select value={draft.material} disabled>{Object.entries(materialNames).map(([k,v]) => <option key={k} value={k}>{v}</option>)}</select></label><label>泄漏形态（演练假设）<select value={draft.release} onChange={e => patch({ release: e.target.value as SceneDraft['release'] })}><option value="seep">局部渗漏</option><option value="jet">持续喷漏</option><option value="rupture">较大破口释放</option></select></label></div>{['fire','explosion'].includes(draft.event) && <label className="rail-check"><input type="checkbox" checked={draft.ignitionConfirmed} onChange={e => patch({ ignitionConfirmed: e.target.checked })} />本次演练明确假设存在点火源</label>}{draft.event === 'explosion' && <label className="rail-check"><input type="checkbox" checked={draft.accumulationConfirmed} onChange={e => patch({ accumulationConfirmed: e.target.checked })} />本次演练明确假设存在可燃物积聚与混合条件</label>}<label className="rail-check"><input type="checkbox" checked={draft.mitigated} onChange={e => patch({ mitigated: e.target.checked })} />对比假设施加隔离、停止供料、收集及专业灭火措施（不表示原隐患已整改）</label><p>物料和事故条件决定演化分支；风险等级不直接决定火焰大小或爆炸。</p></section>
+        <section className="rail-card"><h2>原记录问题与整改</h2><label>问题描述（原平台只读）<textarea readOnly maxLength={2000} rows={3} value={draft.problem} /></label><label>原因 / 演练假设<textarea readOnly maxLength={2000} rows={2} value={draft.cause} placeholder="原平台未提供，显示待核实" /></label><label>整改措施 / 防控建议（原平台只读）<textarea readOnly rows={3} maxLength={2000} value={draft.measure} /></label><div className="rail-form-grid rail-environment"><label>温度 / °C（平台未提供）<input readOnly value="未知" /></label><label>风速 / m·s⁻¹（平台未提供）<input readOnly value="未知" /></label><label>风向 / °（平台未提供）<input readOnly value="未知" /></label></div><p>原平台没有提供的气象和原因字段保持“未知/待核实”，不会要求操作人员手工补录；场景演示按已知数据生成定性效果。</p></section>
         {errors.length > 0 && <div className="rail-errors" role="alert">{errors.map(e => <p key={e}>{e}</p>)}</div>}
         <div className="rail-config-actions"><button disabled={busy} onClick={() => { const value = { ...draft, savedAt: new Date().toISOString() }; setDraft(value); setNotice(persist(value) ? '已保存本账号会话草稿；下次可点击恢复' : '存储失败，空间不足；可应用后下载配置文件') }}><Save size={16} />保存草稿</button><button className="rail-primary" disabled={busy} onClick={apply}><Play size={16} />确认配置并进入演示</button></div>
       </div>

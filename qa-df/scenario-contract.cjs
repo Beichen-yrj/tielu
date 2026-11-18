@@ -22,8 +22,8 @@ const sourceRecord = {
 const before = JSON.stringify(sourceRecord)
 const source = model.sourceFromAssessment(sourceRecord, '合成测试快照')
 const d = model.sceneFromSource(source)
-assert.ok(model.validateScene(d).some(s => s.includes('映射')))
-d.mappingConfirmed = true; d.wind = '0'; d.temperature = ''; d.savedAt = '2026-11-17T02:00:00.000Z'
+assert.equal(d.mappingConfirmed, true, 'Platform source mapping is derived automatically')
+d.wind = '0'; d.temperature = ''; d.savedAt = '2026-11-17T02:00:00.000Z'
 assert.equal(model.validateScene(d).length, 0)
 const facts = new Map(model.sceneFacts(d))
 assert.equal(facts.get('温度'), '未知')

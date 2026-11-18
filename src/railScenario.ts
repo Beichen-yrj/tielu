@@ -8,6 +8,15 @@ export const sceneObjects = { Z02: '罐车装卸栈台 · 罐车连接部位', Z
 export const sceneEvents = { leak: '泄漏', fire: '火灾', explosion: '爆炸', dispersion: '气体扩散', control: '作业防控检查' } as const
 export const sceneStages = ['作业背景', '问题定位', '过程演示', '后果与整改'] as const
 export const sceneBoundary = '定性情景演示，非现场复原；不计算超压、热辐射、危害半径或经济损失，不改变原风险等级与整改状态。'
+function regionFromBureau(bureau: string): keyof typeof sceneRegions {
+  if (/哈尔滨|沈阳/.test(bureau)) return 'NE'
+  if (/北京|太原|呼和浩特|郑州/.test(bureau)) return 'NC'
+  if (/济南|上海|南昌|武汉/.test(bureau)) return 'EC'
+  if (/广州|南宁/.test(bureau)) return 'SC'
+  if (/成都|昆明/.test(bureau)) return 'SW'
+  if (/西安|兰州|乌鲁木齐|青藏/.test(bureau)) return 'NW'
+  return 'NC'
+}
 export type SceneSource = {
   id: string; title: string; bureau: string; station: string; area: string; cargo: string; un: string
   risk: string; finding: string; basis: string; action: string; measured: string; standard: string
@@ -31,13 +40,17 @@ export function sourceFromAssessment(r: HazardAssessmentRecord, provenance: stri
 export function sceneFromSource(source: SceneSource): SceneDraft {
   const draft = { ...emptyScene(), source, title: source.title, problem: source.finding, measure: source.action, photo: safePhoto(source.photo), photoName: source.photoName }
   const advice = adviseScenario(draft)
-  return { ...draft, zone: advice.zone, event: advice.event, material: advice.material }
+  // Platform records are the authoritative source for the scenario. The derived
+  // mapping is confirmed by the rule layer so the operator does not retype or
+  // manually remap the original finding before opening the demonstration.
+  return { ...draft, region: regionFromBureau(source.bureau), zone: advice.zone, event: advice.event, material: advice.material, mappingConfirmed: true }
 }
 export function demoScene(): SceneDraft {
   return { ...emptyScene(), material: 'flammable_liquid', isTeaching: true, title: '罐车连接部位泄漏教学案例', problem: '假设装卸连接部位出现泄漏，需要定位并检查密封与连接状态。', cause: '连接部位密封失效（教学假设，未经现场核实）', measure: '按现场预案停止相关作业、设置警戒，由专业人员核查连接与密封，整改后按原流程复核。' }
 }
 export function validateScene(d: SceneDraft): string[] {
   const errors: string[] = []
+  if (!d.source) errors.push('请先从原平台选择一条评估记录；独立手动配置已关闭')
   if (!d.title.trim()) errors.push('请填写演示名称')
   if (!d.problem.trim()) errors.push('请填写问题描述')
   if (!d.mappingConfirmed) errors.push('请确认问题与模板对象的映射；未知位置不能直接应用')
