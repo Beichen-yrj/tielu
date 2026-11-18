@@ -1,6 +1,8 @@
 {
+
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "plugins": ["react", "typescript", "oxc"],
+  "ignorePatterns": ["src-df/**", "qa-df/**", "vendor/**", "public/digital-factory-3d.html", "dist/**"],
   "rules": {
     "react/rules-of-hooks": "error",
     "react/only-export-components": ["warn", { "allowConstantExport": true }]

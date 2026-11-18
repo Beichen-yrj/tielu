@@ -11,6 +11,7 @@ from . import models  # noqa: F401
 from .auth import ensure_default_admin
 from .auth import router as auth_router
 from .ai import router as ai_router
+from .scenario_ai import router as scenario_ai_router
 from .assessments import router as assessments_router
 from .feedback import router as feedback_router
 from .hazard_assessments import router as hazard_assessments_router
@@ -73,6 +74,7 @@ app.include_router(feedback_router)
 app.include_router(assessments_router)
 app.include_router(hazard_assessments_router)
 app.include_router(ai_router)
+app.include_router(scenario_ai_router)
 
 
 @app.get("/api/health", response_model=HealthResponse, tags=["system"])

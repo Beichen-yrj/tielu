@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="zh-CN"><meta charset="utf-8"><title>铁路站场渲染恢复验证</title>
+<style>body{margin:0;background:#061529;color:#daf0ff;font:14px 'Microsoft YaHei',sans-serif}header{height:50px;display:flex;align-items:center;gap:16px;padding:0 16px}button{padding:6px 14px}iframe{width:100vw;height:calc(100vh - 50px);border:0;display:block}</style>
+<header><strong>本地渲染恢复测试</strong><button id="lose">模拟图形中断</button><button id="restore" disabled>恢复画面</button><span id="testStatus" role="status">等待场景加载</span></header>
+<iframe id="yard" title="渲染恢复测试站场" src="/digital-factory-3d.html?instant=1&amp;still=1"></iframe>
+<script>
+const frame=document.getElementById('yard'),status=document.getElementById('testStatus');let extension;
+frame.addEventListener('load',()=>{
+ const renderer=frame.contentWindow.DF?.renderer;if(!renderer){status.textContent='场景启动失败';return;}
+ extension=renderer.getContext().getExtension('WEBGL_lose_context');
+ status.textContent=extension?'场景已就绪':'当前浏览器不支持模拟中断';
+ document.getElementById('lose').disabled=!extension;
+ const canvas=frame.contentDocument.getElementById('scene');
+ canvas.addEventListener('webglcontextlost',()=>{status.textContent='图形上下文已中断';document.getElementById('restore').disabled=false;});
+ canvas.addEventListener('webglcontextrestored',()=>{status.textContent='图形上下文已恢复';document.getElementById('restore').disabled=true;});
+});
+document.getElementById('lose').onclick=()=>extension?.loseContext();
+document.getElementById('restore').onclick=()=>extension?.restoreContext();
+</script></html>

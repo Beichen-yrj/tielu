@@ -18,6 +18,11 @@ backend/.pytest_cache/
 backend/**/__pycache__/
 backend/tests/test.db
 
+# Local railway scene QA output
+qa-df/results/
+.pytest_cache/
+.run-logs/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

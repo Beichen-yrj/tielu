@@ -8,6 +8,7 @@ import { compressImage } from './assessmentPhotos'
 import { buildImportedRecord, defaultAction, riskFromScore } from './assessmentRecord'
 import { findDuplicateImportRows } from './assessmentDuplicates'
 import type { AssessmentType, HazardAssessmentRecord, RiskLevel } from './api/hazardAssessments'
+import { openRailScenario } from './railScenario'
 
 const riskColors: Record<RiskLevel, string> = { 低: '#24816b', 一般: '#d99a1c', 较大: '#e56f22', 重大: '#d84343' }
 const bureauShort = (name: string) => bureaus.find((item) => item.name === name)?.short || name
@@ -29,11 +30,12 @@ type Props = {
   onSaveMany: (records: HazardAssessmentRecord[]) => Promise<void> | void
   onDelete: (assessmentId: string) => Promise<void> | void
   onNotify: (message: string) => void
+  openRecordId?: string
 }
 
-export function SafetyAssessmentPanel({ records, userName, historyOnly = false, onHistory, onBack, onSave, onSaveMany, onDelete, onNotify }: Props) {
+export function SafetyAssessmentPanel({ records, userName, historyOnly = false, onHistory, onBack, onSave, onSaveMany, onDelete, onNotify, openRecordId }: Props) {
   const [showCreate, setShowCreate] = useState(false)
-  const [reportSelection, setReportSelection] = useState<{ records: HazardAssessmentRecord[]; index: number } | null>(null)
+  const [reportSelection, setReportSelection] = useState<{ records: HazardAssessmentRecord[]; index: number } | null>(() => { const record = records.find(r => r.id === openRecordId); return record ? { records: [record], index: 0 } : null })
   const selected = reportSelection?.records[reportSelection.index] ?? null
   const [query, setQuery] = useState('')
   const [riskFilter, setRiskFilter] = useState('全部')
@@ -93,7 +95,7 @@ export function SafetyAssessmentPanel({ records, userName, historyOnly = false, 
           <td>{record.data_name}：{record.measured_value}{record.unit}</td>
           <td><RiskBadge risk={record.risk} /></td>
           <td>{record.photo_data ? <button className="photo-status photo-button" onClick={() => setPhotoPreview(record)} title="查看检测照片"><FileImage size={13} />查看照片</button> : '无'}</td>
-          <td><div className="row-actions"><button className="row-action" onClick={() => setReportSelection({ records: filtered, index: filtered.findIndex((item) => item.id === record.id) })}>查看报告 <ChevronRight size={12} /></button><button className="row-action danger" onClick={() => void handleDelete(record)} title="删除评估记录"><Trash2 size={13} />删除</button></div></td>
+          <td><div className="row-actions"><button className="row-action" onClick={() => openRailScenario(record.id)}>情景演示</button><button className="row-action" onClick={() => setReportSelection({ records: filtered, index: filtered.findIndex((item) => item.id === record.id) })}>查看报告 <ChevronRight size={12} /></button><button className="row-action danger" onClick={() => void handleDelete(record)} title="删除评估记录"><Trash2 size={13} />删除</button></div></td>
         </tr>)}
       </tbody></table></div> : <div className="empty-state"><ShieldCheck size={24} /><strong>暂无评估记录</strong><span>{historyOnly ? '完成新建评估后，记录会自动保留在这里' : '点击“新建评估”录入第一条危险源检测数据'}</span></div>}
     </section>

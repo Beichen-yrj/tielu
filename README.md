@@ -32,6 +32,8 @@ If you are developing a production application, we recommend enabling type-aware
 See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
 # 铁路危险货物运输双重预防机制智能安全管控平台
 
+铁路数字站场：管理平台顶部入口提供六地区站场、平台评估快照联动、AI 情景助手和五类条件化演示。平台浏览使用当前可访问的原评估记录；独立离线 HTML 保留教学样例。在线 AI 需要启动原后端并配置 DeepSeek 密钥；本地规则明确标识为非在线 AI。当前几何仍是通用模板，特效为定性表现，未接入真实测绘、定量后果计算或整改任务回写。最外层 `digital-factory-3d.html` 保留兼容文件名；详见 [构建说明](src-df/README.md) 和 [本轮实施与验证](docs/铁路危险源联动与AI场景优化.md)。
+
 前端采用 React + TypeScript + Vite，后端采用 Python + FastAPI + SQLAlchemy，正式数据库为 MySQL 8。当前首页是官网式门户，登录后进入安全管理驾驶舱。
 
 ## 目录说明
