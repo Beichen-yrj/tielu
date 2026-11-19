@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Activity, AlertTriangle, ArrowDownRight, ArrowRight, Bell, Boxes, CalendarDays,
   Check, ChevronDown, CircleHelp, ClipboardCheck, Clock3,
@@ -26,6 +26,7 @@ import { MasterPanel } from './MasterPanel'
 import { ProfilePanel, type ProfileStats } from './ProfilePanel'
 import { AdminPanel } from './AdminPanel'
 import { SafetyAssessmentPanel } from './SafetyAssessmentPanel'
+import { AssessmentBatchSaveError, saveAssessmentBatch } from './assessmentBatch'
 import { HazardAnalysisPanel, SafetyTrendPanel } from './HazardAnalysisPanel'
 import type { InspectionResult } from './inspection'
 import './App.css'
@@ -57,7 +58,7 @@ const safetyNavItems: { name: Page; icon: typeof LayoutDashboard }[] = [
   { name: '个人中心', icon: UserCircle },
 ]
 const projectNavItems: { name: Page; icon: typeof LayoutDashboard }[] = [
-  { name: '总览', icon: LayoutDashboard }, { name: '整改闭环', icon: ClipboardCheck }, { name: 'AI助手', icon: Bot }, { name: '个人中心', icon: UserCircle },
+  { name: '总览', icon: LayoutDashboard }, { name: '历史评估', icon: ShieldAlert }, { name: '整改闭环', icon: ClipboardCheck }, { name: 'AI助手', icon: Bot }, { name: '个人中心', icon: UserCircle },
 ]
 const ordinaryNavItems: { name: Page; icon: typeof LayoutDashboard }[] = [
   { name: '总览', icon: LayoutDashboard }, { name: 'AI助手', icon: Bot }, { name: '个人中心', icon: UserCircle },
@@ -122,11 +123,14 @@ function PlatformApp({ onBack, onLogout, onAvatarChange, userName, userRole, use
     try { return JSON.parse(localStorage.getItem(hazardStorageKey) || '[]') as HazardAssessmentRecord[] } catch { return [] }
   })
   const [hazardDataSource, setHazardDataSource] = useState<HazardDataSource>(offline ? 'demo' : 'loading')
+  const [hazardSyncError, setHazardSyncError] = useState('')
+  const hazardRequest = useRef<AbortController | null>(null)
+  const hazardMutations = useRef(0)
 
   const [mobileNav, setMobileNav] = useState(false)
   const [toast, setToast] = useState('')
   const navItems = (role === 'safety_manager' ? safetyNavItems : role === 'project_manager' ? projectNavItems : role === 'ordinary' ? ordinaryNavItems : defaultNavItems).filter((item) => canAccessPage(role, item.name))
-  const activeNavPage = page === '历史评估' ? '风险评估' : page === '历史分析' ? (isAssessor ? '隐患分析' : '总览') : page
+  const activeNavPage = page === '历史评估' && isAssessor ? '风险评估' : page === '历史分析' ? (isAssessor ? '隐患分析' : '总览') : page
   const syncedIssues = useMemo(() => offline ? issues : assessmentIssues(hazardRecords), [hazardRecords, issues, offline])
   const scopeIssues = useMemo(() => syncedIssues.filter((issue) =>
     (!scopeBureau || issue.bureau === scopeBureau) && (!scopeStation || issue.station === scopeStation)), [syncedIssues, scopeBureau, scopeStation])
@@ -162,37 +166,66 @@ function PlatformApp({ onBack, onLogout, onAvatarChange, userName, userRole, use
     setRequestedPage(next)
   }
   const refreshHazardRecords = useCallback(async (showNotice = false) => {
+    if (hazardMutations.current) return
+    hazardRequest.current?.abort()
+    const request = new AbortController()
+    hazardRequest.current = request
     try {
-      const items = await listHazardAssessments()
+      const items = await listHazardAssessments(request.signal)
+      if (request.signal.aborted) return
       setHazardRecords(items)
       setHazardDataSource('database')
+      setHazardSyncError('')
       try { localStorage.setItem(hazardStorageKey, JSON.stringify(items)) } catch { /* MySQL remains authoritative. */ }
       if (showNotice) notify(`驾驶舱数据已同步，共 ${items.length} 条评估记录`)
-    } catch {
+    } catch (error) {
+      if (request.signal.aborted) return
       setHazardDataSource('cache')
-      if (showNotice) notify('数据库暂不可用，当前显示本机缓存数据')
+      const detail = error instanceof ApiError ? `${error.message}（HTTP ${error.status}）` : '无法连接评估数据库服务'
+      setHazardSyncError(detail)
+      if (showNotice) notify(`数据库同步失败：${detail}`)
     }
   }, [hazardStorageKey, notify])
   const updateIssue = async (id: string, update: RectificationUpdate) => {
     if (!canRectify || offline) throw new ApiError('请登录在线账号后保存处理记录', 403)
+    hazardMutations.current++
+    hazardRequest.current?.abort()
+    let refreshAfterConflict = false
     try {
       const updated = await updateRectificationStatus(id.slice(3), update)
       const next = hazardRecords.map((record) => record.id === updated.id ? updated : record)
       setHazardRecords(next)
       setHazardDataSource('database')
+      setHazardSyncError('')
       try { localStorage.setItem(hazardStorageKey, JSON.stringify(next)) } catch { /* Database save succeeded. */ }
       notify(update.operation === 'withdraw' ? '已撤回到上一个阶段' : update.status === '已闭环' ? '整改已完成闭环' : '处理记录已保存')
       return true
     } catch (error) {
-      if (error instanceof ApiError && error.status === 409) await refreshHazardRecords()
+      refreshAfterConflict = error instanceof ApiError && error.status === 409
       throw error
+    } finally {
+      hazardMutations.current--
+      if (refreshAfterConflict) await refreshHazardRecords()
     }
   }
   useEffect(() => { localStorage.setItem('rail-assessments', JSON.stringify(assessments)) }, [assessments])
   // Loading persisted assessments on entry is the intended external synchronization effect.
   // oxlint-disable react/set-state-in-effect
   useEffect(() => {
-    if (!offline) void refreshHazardRecords()
+    if (offline) return
+    void refreshHazardRecords()
+    const synchronize = () => { if (document.visibilityState === 'visible') void refreshHazardRecords() }
+    window.addEventListener('focus', synchronize)
+    window.addEventListener('online', synchronize)
+    document.addEventListener('visibilitychange', synchronize)
+    const interval = window.setInterval(synchronize, 30_000)
+    return () => {
+      window.clearInterval(interval)
+      window.removeEventListener('focus', synchronize)
+      window.removeEventListener('online', synchronize)
+      document.removeEventListener('visibilitychange', synchronize)
+      hazardRequest.current?.abort()
+    }
   }, [offline, refreshHazardRecords])
   // oxlint-enable react/set-state-in-effect
   const saveHazardAssessment = async (record: HazardAssessmentRecord) => {
@@ -200,25 +233,39 @@ function PlatformApp({ onBack, onLogout, onAvatarChange, userName, userRole, use
   }
   const saveHazardAssessments = async (records: HazardAssessmentRecord[]) => {
     if (!isAssessor) throw new ApiError('当前账号无风险评估权限', 403)
-    const saved: HazardAssessmentRecord[] = []
+    hazardMutations.current++
+    hazardRequest.current?.abort()
+    let saved: HazardAssessmentRecord[] = []
     try {
-      for (const record of records) saved.push(offline ? record : await persistHazardAssessment(record))
+      saved = await saveAssessmentBatch(records, async record => offline ? record : await persistHazardAssessment(record))
+    } catch (error) {
+      if (error instanceof AssessmentBatchSaveError) saved = error.savedRecords
+      throw error
     } finally {
       const ids = new Set(saved.map((record) => record.id))
       const next = [...saved, ...hazardRecords.filter((item) => !ids.has(item.id))]
       setHazardRecords(next)
-      if (!offline && saved.length) setHazardDataSource('database')
+      if (!offline && saved.length) { setHazardDataSource('database'); setHazardSyncError('') }
       try { localStorage.setItem(hazardStorageKey, JSON.stringify(next)) } catch { /* Saved records remain in the database. */ }
+      hazardMutations.current--
     }
   }
   const removeHazardAssessment = async (assessmentId: string) => {
     if (!isAssessor) throw new ApiError('当前账号无评估记录删除权限', 403)
-    if (!offline) {
-      try { await deleteHazardAssessment(assessmentId); setHazardDataSource('database') } catch { setHazardDataSource('cache'); notify('数据库删除失败，记录仍保留'); return }
+    hazardMutations.current++
+    hazardRequest.current?.abort()
+    try {
+      if (!offline) {
+        await deleteHazardAssessment(assessmentId)
+        setHazardDataSource('database')
+        setHazardSyncError('')
+      }
+      const next = hazardRecords.filter((item) => item.id !== assessmentId)
+      setHazardRecords(next)
+      try { localStorage.setItem(hazardStorageKey, JSON.stringify(next)) } catch { /* The in-memory list is still updated. */ }
+    } finally {
+      hazardMutations.current--
     }
-    const next = hazardRecords.filter((item) => item.id !== assessmentId)
-    setHazardRecords(next)
-    try { localStorage.setItem(hazardStorageKey, JSON.stringify(next)) } catch { /* The in-memory list is still updated. */ }
   }
   const saveAssessment = (record: AssessmentRecord) => {
     if (!isAssessor) { notify('当前账号无风险评估权限'); return }
@@ -251,9 +298,10 @@ function PlatformApp({ onBack, onLogout, onAvatarChange, userName, userRole, use
       {mobileNav && <button className="scrim" aria-label="关闭菜单" onClick={() => setMobileNav(false)} />}
       <main className="main-area">
         <header className="topbar"><div className="topbar-left"><button className="icon-btn menu-toggle" aria-label="打开导航" onClick={() => setMobileNav(true)}><Menu size={20} /></button><SimulationSwitch records={hazardRecords} userKey={userName} sourceLabel={hazardDataSource === 'database' ? '平台业务记录快照' : hazardDataSource === 'demo' ? '演示环境评估快照' : '本机缓存记录快照（非实时）'} onOpenSource={id => { setSceneReturn(s => ({ id, key: s.key + 1 })); setPage('历史评估') }} /><button className="portal-back" onClick={onBack}>门户首页</button><div className="crumb"><span>安全运营</span><span>/</span><strong>{page === '总览' ? '安全驾驶舱' : page}</strong></div></div><div className="top-actions"><span className="environment"><i />{hazardDataSource === 'demo' ? '演示环境' : hazardDataSource === 'cache' ? '缓存数据' : hazardDataSource === 'loading' ? '同步中' : '在线数据'}</span><span className="top-date"><CalendarDays size={15} />{todayLabel()}</span><button className="icon-btn notification" aria-label="通知" onClick={() => notify('当前有 3 条待办提醒')}><Bell size={18} /><b /></button><button className="top-user" onClick={() => setPage('个人中心')}><div className={`avatar small-avatar ${avatarData ? 'has-image' : ''}`}>{avatarData ? <img src={avatarData} alt="用户头像" /> : userName.slice(0, 1)}</div><span>{userName}</span><ChevronDown size={14} /></button></div></header>
+        {hazardSyncError && !offline && <div className="data-sync-error" role="alert"><span>数据库评估数据同步失败：{hazardSyncError}。当前页面可能显示本机缓存。</span><button type="button" onClick={() => void refreshHazardRecords(true)}>重试同步</button></div>}
         {page === '总览' && <Dashboard issues={scopeIssues} records={hazardRecords} dataLoaded={hazardDataSource !== 'loading'} dataSource={hazardDataSource} demoMode={offline} canAssess={isAssessor} canAnalyze={canAccessPage(role, '历史分析')} canRectify={canRectify} period={period} setPeriod={setPeriod} setPage={setPage} setSelectedIssue={setSelectedIssue} onRefresh={async () => { if (offline) notify('演示数据已刷新'); else await refreshHazardRecords(true) }} onNotify={notify} scopeBureau={scopeBureau} setScopeBureau={setScopeBureau} scopeStation={scopeStation} setScopeStation={setScopeStation} />}
-        {page === '风险评估' && (isAssessor ? <SafetyAssessmentPanel records={hazardRecords} userName={userName} onHistory={() => setPage('历史评估')} onSave={saveHazardAssessment} onSaveMany={saveHazardAssessments} onDelete={removeHazardAssessment} onNotify={notify} /> : <AssessmentPanel key={`assessment-${createSignal}`} records={assessments} activeId={activeAssessmentId} setActiveId={setActiveAssessmentId} onSave={saveAssessment} onComplete={completeAssessment} onNotify={notify} userName={userName} createSignal={createSignal} />)}
-        {page === '历史评估' && <SafetyAssessmentPanel key={sceneReturn.key} openRecordId={sceneReturn.id} records={hazardRecords} userName={userName} historyOnly onBack={() => setPage('风险评估')} onSave={saveHazardAssessment} onSaveMany={saveHazardAssessments} onDelete={removeHazardAssessment} onNotify={notify} />}
+        {page === '风险评估' && (isAssessor ? <SafetyAssessmentPanel records={hazardRecords} userName={userName} canDelete={record => offline || role === 'admin' || record.user_id === userId} onRefresh={() => refreshHazardRecords(true)} onHistory={() => setPage('历史评估')} onSave={saveHazardAssessment} onSaveMany={saveHazardAssessments} onDelete={removeHazardAssessment} onNotify={notify} /> : <AssessmentPanel key={`assessment-${createSignal}`} records={assessments} activeId={activeAssessmentId} setActiveId={setActiveAssessmentId} onSave={saveAssessment} onComplete={completeAssessment} onNotify={notify} userName={userName} createSignal={createSignal} />)}
+        {page === '历史评估' && <SafetyAssessmentPanel key={sceneReturn.key} openRecordId={sceneReturn.id} records={hazardRecords} userName={userName} historyOnly readOnly={!isAssessor} canDelete={record => isAssessor && (offline || role === 'admin' || record.user_id === userId)} onRefresh={() => refreshHazardRecords(true)} onBack={() => setPage(isAssessor ? '风险评估' : '总览')} onSave={saveHazardAssessment} onSaveMany={saveHazardAssessments} onDelete={removeHazardAssessment} onNotify={notify} />}
         {page === '隐患分析' && <HazardAnalysisPanel records={hazardRecords} onHistory={() => setPage('历史分析')} />}
         {page === '整改闭环' && <Rectifications view={rectificationView} setView={setRectificationView} issues={filteredIssues} allIssues={scopeIssues} filter={filter} setFilter={setFilter} search={search} setSearch={setSearch} onSelect={setSelectedIssue} onRefresh={async () => { await refreshHazardRecords(true) }} completed={completed} scopeText={scopeLabel(scopeBureau, scopeStation)} />}
         {page === '历史分析' && (isAssessor ? <SafetyTrendPanel records={hazardRecords} onBack={() => setPage('隐患分析')} /> : <HistoryPanel records={assessments} issues={scopeIssues} period={period} setPeriod={setPeriod} onBack={() => setPage('总览')} onOpen={(id) => { setActiveAssessmentId(id); setPage('风险评估') }} onNotify={notify} />)}
@@ -285,6 +333,7 @@ function App({ startAtEntry = false }: { startAtEntry?: boolean }) {
         setUserName(user.display_name)
         setUserRole(user.role)
         setAvatarData(user.avatar_data || '')
+        setOffline(false)
         setEntered(true)
         return
       } catch {

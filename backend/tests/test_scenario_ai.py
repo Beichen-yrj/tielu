@@ -71,6 +71,7 @@ def test_server_reads_actual_source_and_rejects_stale_version(monkeypatch):
 @pytest.mark.parametrize("answer", [
     {"summary": "x", "zone": "Z99", "event": "fire", "material": "toxic_gas", "reasons": ["x"], "actions": ["x"], "missing": []},
     {"summary": "x", "zone": "Z02", "event": "fire", "material": "toxic_gas", "reasons": ["x"], "actions": ["x"], "missing": []},
+    {"summary": "x", "zone": "Z02", "event": "fire", "material": "flammable_liquid", "problem_type": "人", "reasons": ["x"], "actions": ["x"], "missing": []},
     {"summary": "x", "zone": "Z02", "event": "leak", "material": "unknown", "reasons": ["x"], "actions": ["x"], "missing": [], "code": "evil()"},
 ])
 def test_invalid_ai_data_is_never_applied(monkeypatch, answer):

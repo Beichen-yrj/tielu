@@ -1,7 +1,7 @@
 import { hazardCatalog, hazardDimensions, hazardStages } from './hazardCatalog'
 import { bureaus } from './railwayScope'
 import type { AssessmentType, RiskLevel } from './api/hazardAssessments'
-import { compressImage } from './assessmentPhotos'
+import { compressInspectionPhotos } from './assessmentPhotos'
 
 export type ImportedAssessment = {
   taskName: string
@@ -71,11 +71,12 @@ export async function parseAssessmentWorkbook(file: File): Promise<ImportedAsses
   const parsed = parseAssessmentRows(rows)
   for (const row of parsed) {
     const pictures = photos.get(row.excelRow) ?? []
-    if (pictures.length > 1) throw new Error(`第 ${row.excelRow} 行有多张检测照片，请每行保留一张，或导入后逐行上传`)
     if (pictures[0]) {
-      try { row.photoData = await compressImage(pictures[0].file) }
+      try { row.photoData = await compressInspectionPhotos(pictures.map(picture => picture.file)) }
       catch { throw new Error(`第 ${row.excelRow} 行检测照片无法读取，请重新插入或导入后逐条上传`) }
-      row.photoName = row.photoName || pictures[0].name
+      row.photoName = pictures.length > 1
+        ? `${row.photoName || '检测照片'}（${pictures.length} 张合成，按编号查看）`
+        : row.photoName || pictures[0].name
     }
   }
   return parsed
@@ -86,9 +87,8 @@ export function parseAssessmentRows(rows: unknown[][]): Array<ImportedAssessment
   if (headerIndex < 0) throw new Error('未找到模板表头，请使用平台提供的 Excel 模板')
 
   const columns = rows[headerIndex].map((header) => fieldByHeader[normalizeHeader(header)] ?? null)
-  const taskColumn = columns.indexOf('taskName')
   const dataRows: ParsedRow[] = rows.slice(headerIndex + 1).flatMap((row, index) => (
-    taskColumn >= 0 && cellText(row[taskColumn]) ? [{ values: row, excelRow: headerIndex + index + 2 }] : []
+    row.some((value, column) => columns[column] && cellText(value)) ? [{ values: row, excelRow: headerIndex + index + 2 }] : []
   ))
   if (!dataRows.length) throw new Error('模板中没有评估数据，请填写表头下方的数据行')
 

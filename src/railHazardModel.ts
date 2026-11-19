@@ -1,9 +1,11 @@
 import type { SceneDraft, SceneSource } from './railScenario'
+import { classifyHazardIssue, type ProblemKind } from './railHazardCatalog'
 
 export const materialTypes = { unknown: '性质待核实', flammable_liquid: '易燃液体', flammable_gas: '易燃气体', toxic_gas: '有毒气体', corrosive_liquid: '腐蚀性液体', other: '其他 / 非燃烧类' } as const
 export type MaterialType = keyof typeof materialTypes
 export type ScenarioAdvice = {
   origin: 'rules' | 'deepseek'; summary: string; zone: SceneDraft['zone']; event: SceneDraft['event']; material: MaterialType
+  problemType: ProblemKind; issue: string; consequence: string; caption: string; modelPrompt: string
   reasons: string[]; missing: string[]; actions: string[]; model?: string
 }
 // Screening hints only. The UN/name table never replaces a cargo SDS or transport classification.
@@ -16,18 +18,22 @@ export function inferMaterial(cargo: string, un = ''): MaterialType {
 }
 export function adviseScenario(d: SceneDraft): ScenarioAdvice {
   const s = d.source, text = `${s?.hazardName || ''} ${s?.area || ''} ${d.problem}`
+  const profile = classifyHazardIssue(s?.hazardName || '', d.problem, s?.dimension || '')
   const material = d.material === 'unknown' ? inferMaterial(s?.cargo || '', s?.un || '') : d.material
-  const administrative = s?.dimension === '管' || /培训|资质|审批|制度|责任意识|档案|记录缺|记录待/.test(text)
-  const zone = /包装|货位|搬运/.test(text) ? 'Z03' : /交接|暂存|罐箱/.test(text) ? 'Z05' : 'Z02'
-  const event = administrative ? 'control' : material === 'toxic_gas' ? 'dispersion' : /静电|防雷|防爆|明火/.test(text) && ['flammable_liquid', 'flammable_gas'].includes(material) ? 'fire' : 'leak'
+  const administrative = profile.kind === '人' || profile.kind === '环' || profile.kind === '管' || s?.dimension === '管'
+  const zone = profile.zoneHint || (/包装|货位|搬运/.test(text) ? 'Z03' : /交接|暂存|罐箱/.test(text) ? 'Z05' : 'Z02')
+  const event = administrative ? 'control' : profile.event === 'dispersion' && material === 'toxic_gas' ? 'dispersion' : profile.event === 'fire' && ['flammable_liquid', 'flammable_gas'].includes(material) ? 'fire' : material === 'toxic_gas' ? 'dispersion' : profile.event === 'leak' ? 'leak' : 'control'
   const missing = []
   if (!s) missing.push('尚未绑定平台危险源评估记录')
   if (material === 'unknown') missing.push('货物 SDS、物态和燃烧 / 毒性特征')
   if (!d.wind.trim() || !d.direction.trim()) missing.push('现场风速、风向（未知不自动当作静风）')
   missing.push('现场总平面与实际坐标、容器容量 / 压力、泄漏尺寸和持续时间')
   if (event === 'fire') missing.push('点火源是否存在；须人工确认后方可展示燃烧')
-  return { origin: 'rules', summary: administrative ? '该记录首先对应作业防控与检查，不应直接渲染成火灾或爆炸。' : '按危险源对象与货物性质生成候选情景，应用前需核实条件。', zone, event, material,
-    reasons: [s ? `危险源 ${s.hazardCode || '编号待补'} · ${s.hazardName || d.problem}` : d.problem || '请填写问题描述', s ? `${s.stage || '环节未知'} / ${s.dimension || '维度未知'}；原等级 ${s.risk}，治理状态 ${s.status}` : '当前仅为人工演练草稿', `${materialTypes[material]}；建议仅用于场景配置，不重新判定风险等级`],
+  const consequence = profile.consequence
+  const caption = `${profile.kind}类问题：${s?.cargo || materialTypes[material]}${event === 'control' ? '作业防控风险' : event === 'dispersion' ? '气体逸散' : event === 'fire' ? '可能起火' : '可能泄漏'}（演练假设）`
+  const modelPrompt = `铁路危货${profile.kind}类问题建模：${profile.issue}。对象为${materialTypes[material]}，在${zone}展示${event === 'control' ? '人员巡检、警戒和防控处置' : event === 'leak' ? '局部泄漏、液池或收集隔离' : event === 'dispersion' ? '气体逸散与风向示意' : '受控火焰与报警响应'}；只做定性演示，不计算浓度、半径、超压或经济损失。弹幕：${caption}`
+  return { origin: 'rules', summary: administrative ? '该记录优先展示人员、环境或管理防控后果，不直接渲染成火灾或爆炸。' : '按隐患目录、危险源对象和货物性质生成候选后果，应用前需核实条件。', zone, event, material, problemType: profile.kind, issue: profile.issue, consequence, caption, modelPrompt,
+    reasons: [s ? `危险源 ${s.hazardCode || '编号待补'} · ${s.hazardName || d.problem}` : d.problem || '请填写问题描述', s ? `${s.stage || '环节未知'} / ${s.dimension || '维度未知'}；原等级 ${s.risk}，治理状态 ${s.status}` : '当前仅为人工演练草稿', `${materialTypes[material]}；问题属性：${profile.kind}；建议仅用于场景配置，不重新判定风险等级`],
     missing, actions: [d.measure || '按原评估措施落实防控，补齐现场检查证据', '核查装卸连接、接地、防溜、报警与事故收集设施的适用性', '回到原评估与整改流程提交检测和照片，按既有权限复核'] }
 }
 export function scenarioConditions(d: SceneDraft): string[] {
@@ -39,7 +45,7 @@ export function scenarioConditions(d: SceneDraft): string[] {
   return errors
 }
 export function sceneEngineConfig(d: SceneDraft) {
-  return { region: d.region, zone: d.zone, event: d.event, problem: d.problem, material: d.material, release: d.release,
+  return { region: d.region, zone: d.zone, event: d.event, problem: d.problem, material: d.material, release: d.release, problemType: d.problemType, issue: d.issue, consequence: d.consequence, caption: d.caption, modelPrompt: d.modelPrompt,
     wind: d.wind.trim() === '' ? null : Number(d.wind), direction: d.direction.trim() === '' ? null : Number(d.direction),
     ignition: d.ignitionConfirmed, accumulation: d.accumulationConfirmed, mitigated: d.mitigated,
     source: d.source ? { id: d.source.id, hazardCode: d.source.hazardCode, name: d.source.hazardName, cargo: d.source.cargo, risk: d.source.risk, status: d.source.status } : null }

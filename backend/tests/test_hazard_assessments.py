@@ -58,6 +58,21 @@ def test_project_manager_and_ordinary_user_can_read_but_cannot_write() -> None:
             assert client.delete("/api/hazard-assessments/HA-1001", headers=headers).status_code == 403
 
 
+def test_admin_owned_import_is_visible_to_all_reader_roles() -> None:
+    with TestClient(app) as client:
+        settings = get_settings()
+        admin_login = client.post("/api/auth/login", json={"username": settings.admin_username, "password": settings.admin_password})
+        assert admin_login.status_code == 200
+        admin_headers = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+        saved = client.put("/api/hazard-assessments/HA-1001", json=payload(), headers=admin_headers)
+        assert saved.status_code == 200
+        for username, role in (("reader-safety", "safety_manager"), ("reader-project", "project_manager"), ("reader-ordinary", "ordinary")):
+            headers = login_as(client, username, role)
+            listed = client.get("/api/hazard-assessments", headers=headers)
+            assert listed.status_code == 200
+            assert [item["id"] for item in listed.json()] == ["HA-1001"]
+
+
 def test_owner_can_delete_assessment() -> None:
     with TestClient(app) as client:
         headers = login_as(client, "delete-assessor", "safety_manager")
@@ -66,6 +81,30 @@ def test_owner_can_delete_assessment() -> None:
         assert deleted.status_code == 200
         assert deleted.json() == {"deleted": True}
         assert client.get("/api/hazard-assessments", headers=headers).json() == []
+
+
+def test_two_imports_accumulate_and_remain_shared_after_relogin() -> None:
+    with TestClient(app) as client:
+        owner = login_as(client, "batch-safety", "safety_manager")
+        settings = get_settings()
+        logged_in = client.post("/api/auth/login", json={"username": settings.admin_username, "password": settings.admin_password})
+        admin = {"Authorization": f"Bearer {logged_in.json()['access_token']}"}
+        for batch, headers in enumerate((owner, admin)):
+            for row in range(10):
+                data = {**payload(), "id": f"HA-batch-{batch}-{row}"}
+                if row % 2 == 0:
+                    data.update(has_hazard=False, risk="低", score=1)
+                assert client.put(f"/api/hazard-assessments/{data['id']}", json=data, headers=headers).status_code == 200
+        assert client.post("/api/auth/logout", headers=owner).status_code == 200
+        relogin = client.post("/api/auth/login", json={"username": "batch-safety", "password": "safety123"})
+        owner = {"Authorization": f"Bearer {relogin.json()['access_token']}"}
+        readers = [owner, admin, login_as(client, "batch-project", "project_manager"), login_as(client, "batch-ordinary", "ordinary")]
+        for headers in readers:
+            response = client.get("/api/hazard-assessments", headers=headers)
+            assert response.status_code == 200
+            assert len(response.json()) == 20
+            assert len({item["id"] for item in response.json()}) == 20
+            assert sum(item["has_hazard"] for item in response.json()) == 10
 
 
 @pytest.mark.parametrize("role", ["ordinary", "safety_manager"])

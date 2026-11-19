@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { AlertTriangle, ArrowLeft, Camera, Check, ChevronLeft, ChevronRight, CircleHelp, Clock3, Download, FileImage, Filter, Plus, Search, ShieldCheck, Trash2, Upload, X } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, Camera, Check, ChevronLeft, ChevronRight, CircleHelp, Clock3, Download, FileImage, Filter, Plus, RefreshCw, Search, ShieldCheck, Trash2, Upload, X } from 'lucide-react'
 import { hazardCatalog, hazardDimensions, hazardStages } from './hazardCatalog'
 import { bureaus } from './railwayScope'
 import { dangerousGoods, type DangerousGood } from './dangerousGoods'
@@ -7,6 +7,7 @@ import { parseAssessmentWorkbook, type ImportedAssessment } from './assessmentIm
 import { compressImage } from './assessmentPhotos'
 import { buildImportedRecord, defaultAction, riskFromScore } from './assessmentRecord'
 import { findDuplicateImportRows } from './assessmentDuplicates'
+import { AssessmentBatchSaveError } from './assessmentBatch'
 import type { AssessmentType, HazardAssessmentRecord, RiskLevel } from './api/hazardAssessments'
 import { openRailScenario } from './railScenario'
 
@@ -24,6 +25,9 @@ type Props = {
   records: HazardAssessmentRecord[]
   userName: string
   historyOnly?: boolean
+  readOnly?: boolean
+  canDelete: (record: HazardAssessmentRecord) => boolean
+  onRefresh: () => Promise<void>
   onHistory?: () => void
   onBack?: () => void
   onSave: (record: HazardAssessmentRecord) => Promise<void> | void
@@ -33,18 +37,23 @@ type Props = {
   openRecordId?: string
 }
 
-export function SafetyAssessmentPanel({ records, userName, historyOnly = false, onHistory, onBack, onSave, onSaveMany, onDelete, onNotify, openRecordId }: Props) {
+export function SafetyAssessmentPanel({ records, userName, historyOnly = false, readOnly = false, canDelete, onRefresh, onHistory, onBack, onSave, onSaveMany, onDelete, onNotify, openRecordId }: Props) {
   const [showCreate, setShowCreate] = useState(false)
   const [reportSelection, setReportSelection] = useState<{ records: HazardAssessmentRecord[]; index: number } | null>(() => { const record = records.find(r => r.id === openRecordId); return record ? { records: [record], index: 0 } : null })
   const selected = reportSelection?.records[reportSelection.index] ?? null
   const [query, setQuery] = useState('')
   const [riskFilter, setRiskFilter] = useState('全部')
   const [photoPreview, setPhotoPreview] = useState<HazardAssessmentRecord | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
+  const refresh = async () => { setRefreshing(true); try { await onRefresh() } finally { setRefreshing(false) } }
   const handleDelete = async (record: HazardAssessmentRecord) => {
+    if (readOnly || !canDelete(record)) return
     if (!window.confirm(`确定删除评估记录“${record.task_name}”吗？删除后无法恢复。`)) return
-    await onDelete(record.id)
-    if (selected?.id === record.id) setReportSelection(null)
-    onNotify('评估记录已删除')
+    try {
+      await onDelete(record.id)
+      if (selected?.id === record.id) setReportSelection(null)
+      onNotify('评估记录已删除')
+    } catch (error) { onNotify(error instanceof Error ? `删除失败：${error.message}，记录仍保留` : '删除失败，记录仍保留') }
   }
   const filtered = useMemo(() => records.filter((record) => {
     const matchesQuery = `${record.task_name}${record.bureau || ''}${record.station}${record.cargo}${record.hazard_name}${record.inspector}`.includes(query)
@@ -60,7 +69,7 @@ export function SafetyAssessmentPanel({ records, userName, historyOnly = false, 
   return <div className="content safety-assessment-page">
     <div className="page-heading">
       <div><div className="eyebrow">{historyOnly ? '评估档案 · 全程留痕' : '危险源数据 · 分类评估'}</div><h1>{historyOnly ? '历史评估' : '风险评估'}</h1><p>{historyOnly ? '查看静态和动态评估记录、检测照片、判定依据与整改建议' : '确定性检查采用静态评估；存在概率和后果不确定性的数据采用动态评估'}</p></div>
-      <div className="heading-actions">{historyOnly ? <button className="button secondary" onClick={onBack}><ArrowLeft size={16} />返回风险评估</button> : <><button className="button secondary" onClick={onHistory}><Clock3 size={16} />历史评估</button><button className="button primary" onClick={() => setShowCreate(true)}><Plus size={17} />新建评估</button></>}</div>
+      <div className="heading-actions"><button className="button secondary" disabled={refreshing} onClick={() => void refresh()}><RefreshCw size={16} />{refreshing ? '同步中…' : '刷新评估数据'}</button>{historyOnly ? <button className="button secondary" onClick={onBack}><ArrowLeft size={16} />{readOnly ? '返回驾驶舱' : '返回风险评估'}</button> : !readOnly && <><button className="button secondary" onClick={onHistory}><Clock3 size={16} />历史评估</button><button className="button primary" onClick={() => setShowCreate(true)}><Plus size={17} />新建评估</button></>}</div>
     </div>
 
     <div className="metric-grid assessment-kpis">
@@ -81,7 +90,7 @@ export function SafetyAssessmentPanel({ records, userName, historyOnly = false, 
     </section>}
 
     <section className="panel hazard-records">
-      <div className="panel-title"><div><h2>{historyOnly ? '历史评估记录' : '最近评估'}</h2><p>数据按账号保存，点击记录查看完整评估依据和照片</p></div></div>
+      <div className="panel-title"><div><h2>{historyOnly ? '历史评估记录' : '评估台账'}</h2><p>共享评估台账共 {records.length} 条；合格评估保留在此，只有识别出的隐患进入整改闭环。{readOnly ? '当前角色只读。' : '记录保留创建账号归属。'}</p></div></div>
       <div className="hazard-toolbar">
         <label><Search size={15} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索任务、场站、货物或危险源" /></label>
         <select value={riskFilter} onChange={(event) => setRiskFilter(event.target.value)}><option>全部</option><option>低</option><option>一般</option><option>较大</option><option>重大</option></select>
@@ -95,12 +104,12 @@ export function SafetyAssessmentPanel({ records, userName, historyOnly = false, 
           <td>{record.data_name}：{record.measured_value}{record.unit}</td>
           <td><RiskBadge risk={record.risk} /></td>
           <td>{record.photo_data ? <button className="photo-status photo-button" onClick={() => setPhotoPreview(record)} title="查看检测照片"><FileImage size={13} />查看照片</button> : '无'}</td>
-          <td><div className="row-actions"><button className="row-action" onClick={() => openRailScenario(record.id)}>情景演示</button><button className="row-action" onClick={() => setReportSelection({ records: filtered, index: filtered.findIndex((item) => item.id === record.id) })}>查看报告 <ChevronRight size={12} /></button><button className="row-action danger" onClick={() => void handleDelete(record)} title="删除评估记录"><Trash2 size={13} />删除</button></div></td>
+          <td><div className="row-actions"><button className="row-action" onClick={() => openRailScenario(record.id)}>情景演示</button><button className="row-action" onClick={() => setReportSelection({ records: filtered, index: filtered.findIndex((item) => item.id === record.id) })}>查看报告 <ChevronRight size={12} /></button>{!readOnly && canDelete(record) && <button className="row-action danger" onClick={() => void handleDelete(record)} title="删除评估记录"><Trash2 size={13} />删除</button>}</div></td>
         </tr>)}
       </tbody></table></div> : <div className="empty-state"><ShieldCheck size={24} /><strong>暂无评估记录</strong><span>{historyOnly ? '完成新建评估后，记录会自动保留在这里' : '点击“新建评估”录入第一条危险源检测数据'}</span></div>}
     </section>
 
-    {showCreate && <CreateAssessment userName={userName} existingRecords={records} onClose={() => setShowCreate(false)} onSubmit={async (records) => { await (records.length > 1 ? onSaveMany(records) : onSave(records[0])); setShowCreate(false); setReportSelection({ records, index: 0 }); onNotify(records.length > 1 ? `已批量保存 ${records.length} 条评估记录` : `评估已保存，风险等级：${records[0].risk}`) }} />}
+    {showCreate && !readOnly && <CreateAssessment userName={userName} existingRecords={records} onClose={() => setShowCreate(false)} onSubmit={async (records) => { await (records.length > 1 ? onSaveMany(records) : onSave(records[0])); setShowCreate(false); setReportSelection({ records, index: 0 }); onNotify(records.length > 1 ? `已批量保存 ${records.length} 条评估记录` : `评估已保存，风险等级：${records[0].risk}`) }} />}
     {selected && reportSelection && <AssessmentDetail key={selected.id} record={selected} index={reportSelection.index} total={reportSelection.records.length} onNavigate={(direction) => setReportSelection((current) => current ? { ...current, index: Math.max(0, Math.min(current.records.length - 1, current.index + direction)) } : null)} onClose={() => setReportSelection(null)} />}
     {photoPreview && <PhotoPreview record={photoPreview} onClose={() => setPhotoPreview(null)} />}
   </div>
@@ -115,6 +124,7 @@ function RiskBadge({ risk }: { risk: RiskLevel }) {
 }
 
 function CreateAssessment({ userName, existingRecords, onClose, onSubmit }: { userName: string; existingRecords: HazardAssessmentRecord[]; onClose: () => void; onSubmit: (records: HazardAssessmentRecord[]) => Promise<void> | void }) {
+  const [manualRecordId] = useState(() => `HA-${createAssessmentId().replace(/-/g, '')}`)
   const [taskName, setTaskName] = useState('')
   const [bureau, setBureau] = useState(bureaus[0]?.name ?? '')
   const availableStations = bureaus.find((item) => item.name === bureau)?.stations ?? []
@@ -143,8 +153,9 @@ function CreateAssessment({ userName, existingRecords, onClose, onSubmit }: { us
   const [photoData, setPhotoData] = useState('')
   const [message, setMessage] = useState('')
   const [importing, setImporting] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
-  const [importedRows, setImportedRows] = useState<ImportedAssessment[]>([])
+  const [importedRows, setImportedRows] = useState<Array<ImportedAssessment & { recordId: string }>>([])
   const [duplicatePrompt, setDuplicatePrompt] = useState<{ rows: ImportedAssessment[]; duplicateIndexes: number[]; existingIndexes: number[]; inFileIndexes: number[] } | null>(null)
   const dynamicScore = likelihood * severity
   const risk: RiskLevel = assessmentType === '动态' ? riskFromScore(dynamicScore) : staticResult === '符合' ? '低' : staticRisk
@@ -161,7 +172,7 @@ function CreateAssessment({ userName, existingRecords, onClose, onSubmit }: { us
     setStation(nextStations[0] ?? '')
   }
   const uploadPhoto = async (file: File) => {
-    if (importing || uploadingPhoto) return
+    if (saving || importing || uploadingPhoto) return
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) { setMessage('请上传 JPG、PNG 或 WebP 图片'); return }
     setUploadingPhoto(true)
     try {
@@ -171,7 +182,7 @@ function CreateAssessment({ userName, existingRecords, onClose, onSubmit }: { us
     finally { setUploadingPhoto(false) }
   }
   const uploadRowPhoto = async (index: number, file: File) => {
-    if (importing || uploadingPhoto) return
+    if (saving || importing || uploadingPhoto) return
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) { setMessage(`第 ${index + 1} 条请上传 JPG、PNG 或 WebP 图片`); return }
     setUploadingPhoto(true)
     try {
@@ -181,8 +192,9 @@ function CreateAssessment({ userName, existingRecords, onClose, onSubmit }: { us
     } catch { setMessage(`第 ${index + 1} 条图片读取失败，请重新选择`) }
     finally { setUploadingPhoto(false) }
   }
-  const applyImportedRows = (rows: ImportedAssessment[], notice?: string) => {
-    setImportedRows(rows)
+  const applyImportedRows = (rows: Array<ImportedAssessment & { recordId?: string }>, notice?: string) => {
+    // Keep IDs on a retry, including when a commit succeeded but its reply was lost.
+    setImportedRows(rows.map(row => ({ ...row, recordId: row.recordId || `HA-${createAssessmentId().replace(/-/g, '')}` })))
     const imported = rows[0]
     if (!imported) {
       setTaskName('')
@@ -232,9 +244,10 @@ function CreateAssessment({ userName, existingRecords, onClose, onSubmit }: { us
     setAction(imported.action)
     setPhotoName(imported.photoName)
     setPhotoData(imported.photoData)
-    setMessage(notice || `已导入 ${rows.length} 条数据。照片、隐患描述和整改建议按行独立保存；未读取到照片的行请分别上传。`)
+    setMessage(notice || `已导入 ${rows.length} 条数据。照片、隐患描述和整改建议按行独立保存；同一行多张照片已合成为编号证据图；未读取到照片的行请分别上传。`)
   }
   const importExcel = async (file: File) => {
+    if (saving || importing || uploadingPhoto) return
     setImporting(true)
     setMessage('正在读取 Excel 数据...')
     try {
@@ -272,8 +285,7 @@ function CreateAssessment({ userName, existingRecords, onClose, onSubmit }: { us
       const missingPhoto = importedRows.findIndex((row) => !row.photoData)
       if (missingPhoto >= 0) { setMessage(`第 ${missingPhoto + 1} 条评估缺少检测照片，请在该条记录中上传`); return }
       const createdAt = new Date().toLocaleString('zh-CN', { hour12: false })
-      const batchId = createAssessmentId().replace(/-/g, '')
-      await onSubmit(importedRows.map((row, index) => buildImportedRecord(row, userName, `HA-${batchId}-${index + 1}`, createdAt)))
+      await onSubmit(importedRows.map(row => buildImportedRecord(row, userName, row.recordId, createdAt)))
       return
     }
     if (!taskName.trim() || !bureau || !station || !area.trim() || !cargo.trim() || !measuredValue.trim()) { setMessage('请填写任务、办理局、办理站、区域、危险货物和检测结果'); return }
@@ -281,7 +293,7 @@ function CreateAssessment({ userName, existingRecords, onClose, onSubmit }: { us
     const createdAt = new Date().toLocaleString('zh-CN', { hour12: false })
     const finalFinding = finding.trim() || (hasHazard ? `${selected.stage}${selected.dimension}类危险源“${selected.name}”存在异常：${dataName}${measuredValue}${unit ? ` ${unit}` : ''}。` : `未发现“${selected.name}”相关隐患。`)
     await onSubmit([{
-      id: `HA-${createAssessmentId().replace(/-/g, '')}`,
+      id: importedRows[0]?.recordId || manualRecordId,
       task_name: taskName.trim(), bureau, station, area: area.trim(), cargo: cargo.trim(), un_number: unNumber.trim(), inspector: userName,
       hazard_code: selected.code, stage: selected.stage, dimension: selected.dimension, hazard_name: selected.name, basis: selected.basis,
       assessment_type: assessmentType, data_name: dataName.trim(), measured_value: measuredValue.trim(), unit: unit.trim(), standard_value: standardValue.trim(),
@@ -291,9 +303,21 @@ function CreateAssessment({ userName, existingRecords, onClose, onSubmit }: { us
     }])
   }
 
+  const submitWithFeedback = async () => {
+    if (saving || importing || uploadingPhoto) return
+    setSaving(true)
+    try { await submit() }
+    catch (error) {
+      const message = error instanceof Error ? error.message : '保存失败，请重试'
+      if (error instanceof AssessmentBatchSaveError && error.savedRecords.length && importedRows.length > 1) {
+        applyImportedRows(importedRows.slice(error.savedRecords.length), `${message} 编辑区现保留待确认行。`)
+      } else setMessage(message)
+    } finally { setSaving(false) }
+  }
+
   return <div className="modal-backdrop"><section className="modal hazard-create-modal" role="dialog" aria-modal="true" aria-label="新建危险源评估">
-    <div className="modal-header"><div><span className="eyebrow">61项危险源评估库</span><h2>新建评估</h2></div><div className="assessment-import-actions"><label className={`button secondary ${importing || uploadingPhoto ? 'is-disabled' : ''}`}><Upload size={15} />{importing ? '正在导入' : '导入 Excel'}<input type="file" accept=".xlsx" hidden disabled={importing || uploadingPhoto} onChange={(event) => { const file = event.target.files?.[0]; if (file) void importExcel(file); event.target.value = '' }} /></label><a className="button secondary" href={`${import.meta.env.BASE_URL}templates/assessment-import-template.xlsx`} download="铁路危险货物风险评估导入模板.xlsx"><Download size={15} />下载模板</a><button className="icon-btn" onClick={onClose} aria-label="关闭"><X size={19} /></button></div></div>
-    <div className="modal-body hazard-form-body">
+    <div className="modal-header"><div><span className="eyebrow">61项危险源评估库</span><h2>新建评估</h2></div><div className="assessment-import-actions"><label className={`button secondary ${saving || importing || uploadingPhoto ? 'is-disabled' : ''}`}><Upload size={15} />{importing ? '正在导入' : '导入 Excel'}<input type="file" accept=".xlsx" hidden disabled={saving || importing || uploadingPhoto} onChange={(event) => { const file = event.target.files?.[0]; if (file) void importExcel(file); event.target.value = '' }} /></label><a className="button secondary" href={`${import.meta.env.BASE_URL}templates/assessment-import-template.xlsx`} download="铁路危险货物风险评估导入模板.xlsx"><Download size={15} />下载模板</a><button className="icon-btn" disabled={saving || importing || uploadingPhoto} onClick={onClose} aria-label="关闭"><X size={19} /></button></div></div>
+    <div className="modal-body hazard-form-body" inert={saving}>
       {importedRows.length > 1 && <BatchAssessmentEditor rows={importedRows} uploadingPhoto={uploadingPhoto} onUpload={uploadRowPhoto} onChange={(index, patch) => setImportedRows((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item))} />}
       {importedRows.length <= 1 && <>
       <div className="hazard-form-section"><h3>任务信息</h3><div className="form-grid">
@@ -325,7 +349,7 @@ function CreateAssessment({ userName, existingRecords, onClose, onSubmit }: { us
       </>}
       {message && <p className="auth-message" role="status">{message}</p>}
     </div>
-    <div className="modal-actions"><span className="modal-hint">评估完成后将保留历史记录和检测照片</span><div><button className="button secondary" onClick={onClose}>取消</button><button className="button primary" disabled={importing || uploadingPhoto} onClick={() => void submit()}><Check size={16} />生成评估结论</button></div></div>
+    <div className="modal-actions"><span className="modal-hint">{saving ? '正在逐条保存到数据库，请勿关闭窗口…' : '评估完成后将保留历史记录和检测照片'}</span><div><button className="button secondary" disabled={saving || importing || uploadingPhoto} onClick={onClose}>取消</button><button className="button primary" disabled={saving || importing || uploadingPhoto} onClick={() => void submitWithFeedback()}><Check size={16} />{saving ? '正在保存…' : '生成评估结论'}</button></div></div>
     {showUnLookup && <DangerousGoodsLookup onClose={() => setShowUnLookup(false)} onSelect={(item) => { setCargo(item.name); setUnNumber(item.unNumber); setShowUnLookup(false) }} />}
     {duplicatePrompt && <DuplicateImportPrompt duplicate={duplicatePrompt} onContinue={continueDuplicateImport} onSkip={skipDuplicateImport} onCancel={cancelDuplicateImport} />}
   </section></div>

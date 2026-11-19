@@ -11,10 +11,11 @@ test('ordinary and legacy operator accounts can view dashboard, AI assistant, an
   }
 })
 
-test('project managers can rectify but cannot enter assessment or analysis pages', () => {
+test('project managers can rectify and read shared history without assessment or analysis write access', () => {
   assert.equal(canAccessPage('project_manager', '整改闭环'), true)
   assert.equal(canAccessPage('project_manager', 'AI助手'), true)
-  for (const page of ['风险评估', '历史评估', '隐患分析', '历史分析']) assert.equal(canAccessPage('project_manager', page), false)
+  assert.equal(canAccessPage('project_manager', '历史评估'), true)
+  for (const page of ['风险评估', '隐患分析', '历史分析']) assert.equal(canAccessPage('project_manager', page), false)
 })
 
 test('assessment and history access stays available to assessors; unknown roles fail closed', () => {

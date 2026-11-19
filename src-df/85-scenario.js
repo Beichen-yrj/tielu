@@ -32,7 +32,10 @@ function configureAccident(config){
  view={tx:point[0],ty:3,tz:point[2],azim:.65,elev:.44,dist:53,fov:44};transition=null;stopTour();SIM.playing=false;
  while(responders.children.length)responders.remove(responders.children[0]);responseActors.length=0;
  for(let i=0;i<2;i++){const template=anim.patrols[config.zone==='Z02'?0:config.zone==='Z03'?1:2],actor=template.group.clone(true);responders.add(actor);responseActors.push({actor,startX:point[0]+3+i*3,z:config.zone==='Z02'?tankTrack+5.6:config.zone==='Z03'?goodsTrack+8.4:39.3,height:template.height});}
- $('scenarioProblem').textContent=String(config.problem||'').slice(0,2000);applyCamera();updateAccident(0);accidentStatus();
+ $('scenarioProblem').textContent=String(config.problem||'').slice(0,2000);
+ const consequence=String(config.caption||config.consequence||'').trim();
+ const consequenceNode=$('scenarioConsequence');if(consequenceNode)consequenceNode.textContent=consequence.slice(0,240);
+ applyCamera();updateAccident(0);accidentStatus();
 }
 function updateAccident(dt){
  if(!accident.active)return;
@@ -61,6 +64,8 @@ function updateAccident(dt){
  updateMovement(Math.min(t,12));for(const p of anim.patrols)p.group.visible=!(stage>=2&&p.zone===(c.zone==='Z02'?1:c.zone==='Z03'?2:5));
  for(const {actor,startX,z,height}of responseActors){actor.visible=stage>=1;actor.position.set(Math.min(85,startX+Math.max(0,t-12)*.8),height,z);actor.rotation.y=Math.PI/2;}
  if(stage!==accident.stage){accident.stage=stage;$('scenarioStage').textContent='0'+(stage+1)+' / '+stageNames[stage];}
+ const consequenceNode=$('scenarioConsequence');
+ if(consequenceNode){const caption=String(c.caption||c.consequence||'').trim();const stageHint=stage>=3?'当前阶段：后果观察与整改响应。':stage>=2?'当前阶段：按条件展示局部后果演示。':stage>=1?'当前阶段：定位问题对象并启动巡检。':'当前阶段：作业背景与风险对象。';consequenceNode.textContent=(caption?caption+' · ':'')+stageHint;}
  const materialText={unknown:'物态未知：仅定位，不虚构泄漏形态',flammable_liquid:'液体泄漏 / 液池',flammable_gas:'可燃气云 / 条件性点火',toxic_gas:'有毒气云（示意着色）',corrosive_liquid:'液体泄漏 / 收集隔离',other:'非燃烧类：防控检查'}[c.material];
  const sub=$('scenarioConditions');if(sub)sub.textContent=(c.event==='control'?'作业防控检查 · 无泄漏或燃烧':materialText)+' · '+(windKnown?`风 ${c.wind} m/s，来向 ${c.direction}°`:'风况未知：中性示意')+' · '+(c.mitigated?'防控措施对比假设':'未施加对比措施');
  accident.elapsed+=dt;if(accident.elapsed>.15){accidentStatus();accident.elapsed=0;}

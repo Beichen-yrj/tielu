@@ -1,5 +1,6 @@
 import type { HazardAssessmentRecord } from './api/hazardAssessments'
 import { adviseScenario, scenarioConditions, type MaterialType } from './railHazardModel'
+import type { ProblemKind } from './railHazardCatalog'
 
 export const openRailScenario = (id: string) => window.dispatchEvent(new CustomEvent('rail-open-scenario', { detail: id }))
 
@@ -27,12 +28,13 @@ export type SceneSource = {
 export type SceneDraft = {
   schema: 1; region: keyof typeof sceneRegions; zone: keyof typeof sceneObjects; event: keyof typeof sceneEvents
   title: string; problem: string; cause: string; causeConfirmed: boolean; causeEvidence: string; measure: string
+  problemType: ProblemKind; issue: string; consequence: string; caption: string; modelPrompt: string
   temperature: string; wind: string; direction: string; mappingConfirmed: boolean
   source: SceneSource | null; photo: string; photoName: string; annotation: { x: number; y: number; note: string } | null
   savedAt: string; isTeaching: boolean
   material: MaterialType; release: 'seep' | 'jet' | 'rupture'; ignitionConfirmed: boolean; accumulationConfirmed: boolean; mitigated: boolean
 }
-export const emptyScene = (): SceneDraft => ({ schema: 1, region: 'NE', zone: 'Z02', event: 'leak', title: '', problem: '', cause: '', causeConfirmed: false, causeEvidence: '', measure: '', temperature: '', wind: '', direction: '', mappingConfirmed: false, source: null, photo: '', photoName: '', annotation: null, savedAt: '', isTeaching: false, material: 'unknown', release: 'seep', ignitionConfirmed: false, accumulationConfirmed: false, mitigated: false })
+export const emptyScene = (): SceneDraft => ({ schema: 1, region: 'NE', zone: 'Z02', event: 'leak', title: '', problem: '', cause: '', causeConfirmed: false, causeEvidence: '', measure: '', problemType: '管', issue: '问题属性待核实', consequence: '问题属性和现场条件尚未核实，暂不推断具体事故后果。', caption: '问题后果待核实（演练假设）', modelPrompt: '', temperature: '', wind: '', direction: '', mappingConfirmed: false, source: null, photo: '', photoName: '', annotation: null, savedAt: '', isTeaching: false, material: 'unknown', release: 'seep', ignitionConfirmed: false, accumulationConfirmed: false, mitigated: false })
 export function sourceFromAssessment(r: HazardAssessmentRecord, provenance: string): SceneSource {
   const closedAt = r.status === '已闭环' ? (r.rectification_log || []).filter(log => log.operation === 'advance' && log.to_status === '已闭环').map(log => log.created_at).filter(value => Number.isFinite(Date.parse(value))).sort((a, b) => Date.parse(b) - Date.parse(a))[0] || '' : ''
   return { id: r.id, title: r.task_name, bureau: r.bureau, station: r.station, area: r.area, cargo: r.cargo, un: r.un_number, risk: r.risk, finding: r.finding || r.hazard_name, basis: r.basis, action: r.action, measured: `${r.data_name}：${r.measured_value}${r.unit}`, standard: r.standard_value, status: r.status, version: String(r.workflow_version ?? '未提供'), photo: r.photo_data, photoName: r.photo_name, created: r.created_at, closedAt, provenance, hazardCode: r.hazard_code || '', hazardName: r.hazard_name || '', stage: r.stage || '', dimension: r.dimension || '', assessmentType: r.assessment_type || '', hasHazard: r.has_hazard === true }
@@ -43,7 +45,7 @@ export function sceneFromSource(source: SceneSource): SceneDraft {
   // Platform records are the authoritative source for the scenario. The derived
   // mapping is confirmed by the rule layer so the operator does not retype or
   // manually remap the original finding before opening the demonstration.
-  return { ...draft, region: regionFromBureau(source.bureau), zone: advice.zone, event: advice.event, material: advice.material, mappingConfirmed: true }
+  return { ...draft, region: regionFromBureau(source.bureau), zone: advice.zone, event: advice.event, material: advice.material, problemType: advice.problemType, issue: advice.issue, consequence: advice.consequence, caption: advice.caption, modelPrompt: advice.modelPrompt, mappingConfirmed: true }
 }
 export function demoScene(): SceneDraft {
   return { ...emptyScene(), material: 'flammable_liquid', isTeaching: true, title: '罐车连接部位泄漏教学案例', problem: '假设装卸连接部位出现泄漏，需要定位并检查密封与连接状态。', cause: '连接部位密封失效（教学假设，未经现场核实）', measure: '按现场预案停止相关作业、设置警戒，由专业人员核查连接与密封，整改后按原流程复核。' }
@@ -71,11 +73,13 @@ export function parseSceneFile(text: string): SceneDraft {
   const v = JSON.parse(text)
   if (!v || v.schema !== 1 || !Object.hasOwn(sceneRegions, v.region) || !Object.hasOwn(sceneObjects, v.zone) || !Object.hasOwn(sceneEvents, v.event)) throw new Error('配置版本、地区、对象或情景无效')
   const d = emptyScene()
-  for (const key of ['title', 'problem', 'cause', 'causeEvidence', 'measure', 'temperature', 'wind', 'direction', 'photoName', 'savedAt'] as const) {
+  for (const key of ['title', 'problem', 'cause', 'causeEvidence', 'measure', 'problemType', 'issue', 'consequence', 'caption', 'modelPrompt', 'temperature', 'wind', 'direction', 'photoName', 'savedAt'] as const) {
     if (v[key] != null && typeof v[key] !== 'string') throw new Error(`字段 ${key} 应为文字`)
     d[key] = (v[key] || '').slice(0, 4000)
   }
   d.region = v.region; d.zone = v.zone; d.event = v.event
+  if (v.problemType != null && !['人', '物', '环', '管'].includes(v.problemType)) throw new Error('问题属性无效')
+  d.problemType = v.problemType || '管'
   if (v.material != null && !['unknown', 'flammable_liquid', 'flammable_gas', 'toxic_gas', 'corrosive_liquid', 'other'].includes(v.material)) throw new Error('物料性质无效')
   if (v.release != null && !['seep', 'jet', 'rupture'].includes(v.release)) throw new Error('泄漏形态无效')
   d.material = v.material || 'unknown'; d.release = v.release || 'seep'
@@ -107,7 +111,7 @@ export function sceneFacts(d: SceneDraft): [string, string][] {
     ['模板', `${sceneRegions[d.region]} / 程序化示范 v3`], ['模板对象', sceneObjects[d.zone]], ['情景', `${sceneEvents[d.event]}（人工确认条件）`],
     ['危险源指标', s ? `${s.hazardCode} / ${s.hazardName} / ${s.stage} / ${s.dimension}` : '未绑定'],
     ['物料特征', d.material], ['泄漏形态', d.release], ['点火源 / 积聚条件', `${d.ignitionConfirmed ? '演练确认' : '未确认'} / ${d.accumulationConfirmed ? '演练确认' : '未确认'}`], ['防控对比', d.mitigated ? '假设施加隔离与收集措施，不代表已整改' : '未施加对比措施'],
-    ['问题描述', d.problem], ['原因状态', d.causeConfirmed ? '已由填写人确认，依据见下项' : '待核实 / 演练假设'], ['原因', d.cause || '待核实'], ['原因依据', d.causeEvidence || '未提供'],
+    ['问题属性', `${d.problemType} · ${d.issue || '问题属性待核实'}`], ['问题描述', d.problem], ['后果候选', d.consequence || '待 AI / 专业人员核实'], ['建模弹幕', d.caption || '问题后果待核实（演练假设）'], ['建模提示词', d.modelPrompt || '待生成'], ['原因状态', d.causeConfirmed ? '已由填写人确认，依据见下项' : '待核实 / 演练假设'], ['原因', d.cause || '待核实'], ['原因依据', d.causeEvidence || '未提供'],
     ['货物 / UN', s ? `${s.cargo || '未知'} / ${s.un || '未知'}` : '未知'], ['原风险等级', s?.risk || '未带入'], ['原评估依据', s?.basis || '未带入'],
     ['原检测数据', s?.measured || '未带入'], ['原标准 / 阈值', s?.standard || '未带入'], ['原治理状态', s?.status || '未带入'],
     ['整改措施 / 建议', d.measure || '待补充；正式整改在原流程办理'],
@@ -119,8 +123,8 @@ export function sceneFacts(d: SceneDraft): [string, string][] {
 export function stageExplanation(d: SceneDraft, stage: number): string {
   return [
     `使用${sceneRegions[d.region]}通用模板；${d.source ? '来源记录仅作为配置快照带入' : d.isTeaching ? '当前为教学案例' : '当前为独立演练'}，布局不是现场测绘。`,
-    `${sceneObjects[d.zone]}：${d.problem}；原因${d.causeConfirmed ? '已由填写人确认' : '待核实'}。`,
-    `${d.event === 'control' ? '只展示作业检查、防控与应急资源，不生成泄漏或燃烧。' : `按${d.material}与${d.release}形态展示${sceneEvents[d.event]}；已知风向用于可视化漂移，未知时标注中性示意。`} 动画不证明实际发生概率，不表示泄漏必然起火或爆炸。`,
+    `${d.problemType}类问题 · ${d.issue || '问题属性待核实'}：${d.problem}；原因${d.causeConfirmed ? '已由填写人确认' : '待核实'}。`,
+    `${d.event === 'control' ? '只展示巡检、警戒、防控与应急资源，不生成泄漏或燃烧。' : `按${d.material}与${d.release}形态展示${sceneEvents[d.event]}；已知风向用于可视化漂移，未知时标注中性示意。`} ${d.consequence || '后果待核实'} 动画不证明实际发生概率，不表示泄漏必然起火或爆炸。`,
     `${d.measure || '请补充整改措施，并由专业人员确认。'} 影响范围未计算、经济损失未评估；正式复核在原业务流程办理。`,
   ][stage] || ''
 }

@@ -74,7 +74,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return response.json() as Promise<T>
 }
 
-export const listHazardAssessments = () => request<HazardAssessmentRecord[]>('/hazard-assessments')
+export const listHazardAssessments = (signal?: AbortSignal) => request<HazardAssessmentRecord[]>('/hazard-assessments', { signal, cache: 'no-store' })
 export const persistHazardAssessment = (record: HazardAssessmentRecord) => request<HazardAssessmentRecord>(`/hazard-assessments/${record.id}`, {
   method: 'PUT',
   body: JSON.stringify(record),

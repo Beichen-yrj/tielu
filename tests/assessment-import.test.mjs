@@ -13,6 +13,7 @@ const { parseAssessmentRows } = await import('../src/assessmentImport.ts')
 const { buildImportedRecord } = await import('../src/assessmentRecord.ts')
 const { assessmentSignature, findDuplicateImportRows } = await import('../src/assessmentDuplicates.ts')
 const { hazardCatalog } = await import('../src/hazardCatalog.ts')
+const { saveAssessmentBatch, AssessmentBatchSaveError } = await import('../src/assessmentBatch.ts')
 const first = hazardCatalog[0], second = hazardCatalog[1]
 const headers = ['任务名称','办理局','办理站','作业区域','危险货物','作业环节','指标维度','危险源编号','评估方式','检测数据名称','检测值/结论','确定性结论','静态风险等级','发生可能性L','后果严重度C','照片文件名','隐患描述','整改建议']
 const row = (hazard, index) => [`任务${index}`,'北京局','丰台西站','检测区','航空煤油',hazard.stage,hazard.dimension,hazard.code,'动态',`检测${index}`,index,null,null,4,4,`照片${index}.jpg`,`隐患${index}`,`建议${index}`]
@@ -24,6 +25,40 @@ test('each imported row retains its own evidence fields and exact worksheet row'
   const records = rows.map((r,i) => buildImportedRecord({...r,photoData:`data:image/jpeg;base64,row${i}`},'安全员',`HA-test-${i}`,'2026/10/8 10:00:00'))
   assert.deepEqual(records.map(r => [r.finding,r.action,r.photo_name,r.photo_data]),[['隐患1','建议1','照片1.jpg','data:image/jpeg;base64,row0'],['隐患2','建议2','照片2.jpg','data:image/jpeg;base64,row1']])
   assert.notEqual(records[0].hazard_name,records[1].hazard_name)
+})
+
+test('a populated row without a task name reports its worksheet row instead of silently disappearing', () => {
+  const missingName = row(first, 2)
+  missingName[0] = ''
+  assert.throws(() => parseAssessmentRows([headers, row(first, 1), missingName]), /第 3 行：缺少必填字段：任务名称/)
+})
+
+test('imports over ten rows are retained without truncation', () => {
+  const parsed = parseAssessmentRows([headers, ...Array.from({ length: 25 }, (_, index) => row(first, index + 1))])
+  assert.equal(parsed.length, 25)
+  assert.equal(parsed[24].taskName, '任务25')
+})
+
+test('an interrupted ten-row save reports confirmed saves and retries only the remaining records', async () => {
+  const parsed = parseAssessmentRows([headers, ...Array.from({ length: 10 }, (_, index) => row(first, index + 1))])
+  const records = parsed.map((r, index) => buildImportedRecord(r, '安全员', `HA-batch-${index}`, '2026/11/19'))
+  const database = new Map()
+  const persist = async record => { database.set(record.id, record); return record }
+  let failure
+  try {
+    await saveAssessmentBatch(records, async record => {
+      if (database.size === 5) throw new Error('合成第六行请求故障')
+      return persist(record)
+    })
+  } catch (error) { failure = error }
+  assert.ok(failure instanceof AssessmentBatchSaveError)
+  assert.equal(failure.savedRecords.length, 5)
+  assert.match(failure.message, /第 6 条保存失败/)
+  const remaining = records.slice(failure.savedRecords.length)
+  assert.equal((await saveAssessmentBatch(remaining, persist)).length, 5)
+  assert.equal(database.size, 10)
+  await saveAssessmentBatch(records.map(record => ({ ...record, id: `${record.id}-next` })), persist)
+  assert.equal(database.size, 20)
 })
 
 test('blank explanations use only the current row to generate defaults, and never inherit photos', () => {
